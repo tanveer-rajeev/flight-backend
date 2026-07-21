@@ -1,0 +1,134 @@
+package com.aerionsoft.notification.entity;
+
+import com.aerionsoft.application.util.UserDateTimeUtil;
+import com.aerionsoft.notification.enums.NotificationPriority;
+import com.aerionsoft.notification.enums.NotificationStatus;
+import com.aerionsoft.notification.enums.NotificationType;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Table(name = "notifications")
+public class Notification {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    @Column(name = "business_id")
+    private Long businessId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false, columnDefinition = "notification_type")
+    private NotificationType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, columnDefinition = "notification_priority")
+    private NotificationPriority priority;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, columnDefinition = "notification_status")
+    private NotificationStatus status;
+
+    @Column(name = "title", nullable = false, length = 255)
+    private String title;
+
+    @Column(name = "message", nullable = false, columnDefinition = "TEXT")
+    private String message;
+
+    @Column(name = "body", nullable = false, columnDefinition = "TEXT")
+    private String body;
+
+    @Column(name = "action_url", length = 500)
+    private String actionUrl;
+
+    @Column(name = "action_label", length = 100)
+    private String actionLabel;
+
+    @Column(name = "reference_id", length = 100)
+    private String referenceId;
+
+    @Column(name = "reference_type", length = 50)
+    private String referenceType;
+
+    @Column(name = "read_flag")
+    private boolean readFlag;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private Map<String, Object> metadata;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "created_time_offset", length = 32)
+    private String createdTimeOffset;
+
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @OneToMany(mappedBy = "notification", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<NotificationDelivery> deliveries = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = UserDateTimeUtil.now();
+        }
+        if (createdTimeOffset == null) {
+            createdTimeOffset = UserDateTimeUtil.currentOffset();
+        }
+        if (status == null) {
+            status = NotificationStatus.UNREAD;
+        }
+        if (priority == null) {
+            priority = NotificationPriority.MEDIUM;
+        }
+        if (type == null) {
+            type = NotificationType.GENERAL;
+        }
+    }
+
+    public void markAsRead() {
+        this.status = NotificationStatus.READ;
+        this.readAt = UserDateTimeUtil.now();
+    }
+
+    public void markAsArchived() {
+        this.status = NotificationStatus.ARCHIVED;
+        this.archivedAt = UserDateTimeUtil.now();
+    }
+
+    public boolean isUnread() {
+        return NotificationStatus.UNREAD.equals(this.status);
+    }
+
+    public boolean isExpired() {
+        return expiresAt != null && expiresAt.isBefore(UserDateTimeUtil.now());
+    }
+}

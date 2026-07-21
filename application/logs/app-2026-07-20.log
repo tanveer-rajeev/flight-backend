@@ -1,0 +1,30 @@
+2026-07-20 19:36:41.268 [main] INFO  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Using configured Tesseract tessdata path: /tmp/junit-11170530412722905951/custom-tessdata
+2026-07-20 19:36:41.283 [main] WARN  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Configured tesseract.datapath '/nonexistent/tessdata' is missing eng.traineddata; auto-detecting platform default
+2026-07-20 19:36:41.283 [main] WARN  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] No valid Tesseract tessdata directory found. Set tesseract.datapath or install tesseract-langpack-eng.
+2026-07-20 19:36:42.041 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Created live chat conversation 55 for user 10
+2026-07-20 19:36:42.079 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 claimed conversation 1
+2026-07-20 19:36:42.090 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 started live chat 77 with user 10
+2026-07-20 19:36:43.481 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:36:43.518 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:36:43.539 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:36:43.548 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:39:31.891 [main] INFO  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Using configured Tesseract tessdata path: /tmp/junit-4909179538943681446/custom-tessdata
+2026-07-20 19:39:31.905 [main] WARN  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Configured tesseract.datapath '/nonexistent/tessdata' is missing eng.traineddata; auto-detecting platform default
+2026-07-20 19:39:31.905 [main] WARN  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] No valid Tesseract tessdata directory found. Set tesseract.datapath or install tesseract-langpack-eng.
+2026-07-20 19:39:32.594 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Created live chat conversation 55 for user 10
+2026-07-20 19:39:32.644 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 claimed conversation 1
+2026-07-20 19:39:32.655 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 started live chat 77 with user 10
+2026-07-20 19:39:33.995 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:39:34.050 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:39:34.068 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:39:34.077 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:44:25.009 [main] INFO  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Using configured Tesseract tessdata path: /tmp/junit-16678688060108452595/custom-tessdata
+2026-07-20 19:44:25.028 [main] WARN  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Configured tesseract.datapath '/nonexistent/tessdata' is missing eng.traineddata; auto-detecting platform default
+2026-07-20 19:44:25.028 [main] WARN  c.e.t.util.TesseractDataPathResolver - [cid=] [severity=] [event=] No valid Tesseract tessdata directory found. Set tesseract.datapath or install tesseract-langpack-eng.
+2026-07-20 19:44:25.715 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Created live chat conversation 55 for user 10
+2026-07-20 19:44:25.755 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 claimed conversation 1
+2026-07-20 19:44:25.767 [main] INFO  c.e.t.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 started live chat 77 with user 10
+2026-07-20 19:44:27.035 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:44:27.089 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:44:27.107 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-20 19:44:27.117 [main] INFO  c.e.t.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.

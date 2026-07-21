@@ -1,0 +1,4 @@
+# Project exclude paths
+/notification/target/
+/application/application.properties/
+/application/target/

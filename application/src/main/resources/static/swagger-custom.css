@@ -1,0 +1,21 @@
+/* Hide the entire execute button wrapper */
+.swagger-ui .execute-wrapper {
+    display: none !important;
+}
+
+/* Hide 'Try it out' button */
+.swagger-ui .try-out {
+    display: none !important;
+}
+
+/* Hide 'Cancel' button */
+.swagger-ui .cancel {
+    display: none !important;
+}
+
+/* Hide response model/schema section */
+.swagger-ui .models,
+.swagger-ui section.models,
+.swagger-ui .model-box {
+    display: none !important;
+}

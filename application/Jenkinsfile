@@ -1,0 +1,32 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+        maven 'maven'
+    }
+
+    stages {
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Deploy DEV') {
+            steps {
+                sh '''
+                echo "Stopping old app..."
+                pkill -f 'java -jar target' || true
+
+                echo "Starting DEV app..."
+                nohup java -jar target/*.jar \
+                  --spring.profiles.active=dev \
+                  --server.port=8081 \
+                  > app.log 2>&1 &
+                '''
+            }
+        }
+    }
+}

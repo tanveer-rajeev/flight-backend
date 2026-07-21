@@ -1,0 +1,24 @@
+<configuration>
+    <property name="LOG_PATH" value="${log.path:-logs}"/>
+
+    <appender name="GENERAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/app-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [cid=%X{cid}] [severity=%X{severity}] [event=%X{event}] %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="GENERAL_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>100000</queueSize>
+        <appender-ref ref="GENERAL_FILE"/>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="GENERAL_ASYNC"/>
+    </root>
+</configuration>

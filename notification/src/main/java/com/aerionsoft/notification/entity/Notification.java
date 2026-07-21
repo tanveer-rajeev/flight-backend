@@ -1,6 +1,5 @@
 package com.aerionsoft.notification.entity;
 
-import com.aerionsoft.application.util.UserDateTimeUtil;
 import com.aerionsoft.notification.enums.NotificationPriority;
 import com.aerionsoft.notification.enums.NotificationStatus;
 import com.aerionsoft.notification.enums.NotificationType;
@@ -77,9 +76,6 @@ public class Notification {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "created_time_offset", length = 32)
-    private String createdTimeOffset;
-
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
@@ -98,11 +94,9 @@ public class Notification {
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = UserDateTimeUtil.now();
+            createdAt = LocalDateTime.now();
         }
-        if (createdTimeOffset == null) {
-            createdTimeOffset = UserDateTimeUtil.currentOffset();
-        }
+
         if (status == null) {
             status = NotificationStatus.UNREAD;
         }
@@ -116,12 +110,12 @@ public class Notification {
 
     public void markAsRead() {
         this.status = NotificationStatus.READ;
-        this.readAt = UserDateTimeUtil.now();
+        this.readAt = LocalDateTime.now();
     }
 
     public void markAsArchived() {
         this.status = NotificationStatus.ARCHIVED;
-        this.archivedAt = UserDateTimeUtil.now();
+        this.archivedAt = LocalDateTime.now();
     }
 
     public boolean isUnread() {
@@ -129,6 +123,6 @@ public class Notification {
     }
 
     public boolean isExpired() {
-        return expiresAt != null && expiresAt.isBefore(UserDateTimeUtil.now());
+        return expiresAt != null && expiresAt.isBefore(LocalDateTime.now());
     }
 }

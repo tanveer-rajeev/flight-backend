@@ -1,8 +1,5 @@
 package com.aerionsoft.notification.entity;
 
-import com.aerionsoft.application.audit.BaseAuditEntity;
-import com.aerionsoft.application.enums.notification.DeliveryStatus;
-import com.aerionsoft.application.util.UserDateTimeUtil;
 import com.aerionsoft.notification.enums.NotificationChannelType;
 import com.aerionsoft.notification.enums.NotificationStatus;
 import jakarta.persistence.*;
@@ -58,7 +55,7 @@ public class NotificationDelivery{
 
     @PrePersist
     protected void onCreate() {
-        createdAt = UserDateTimeUtil.now();
+        createdAt = LocalDateTime.now();
     }
 
     public static NotificationDelivery pendingFor(NotificationChannelType channel) {

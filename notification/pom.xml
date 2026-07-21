@@ -17,12 +17,6 @@
     <description>Notification Module</description>
 
     <dependencies>
-
-        <dependency>
-            <groupId>com.aerionsoft</groupId>
-            <artifactId>application</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- Spring Context (Application Events, @Async, etc.) -->
         <dependency>
             <groupId>org.springframework</groupId>

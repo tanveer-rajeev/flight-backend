@@ -1,6 +1,8 @@
 package com.aerionsoft.notification.entity;
 
+import com.aerionsoft.notification.dto.NotificationCategory;
 import com.aerionsoft.notification.dto.NotificationType;
+import com.aerionsoft.notification.dto.SystemNotificationType;
 import com.aerionsoft.notification.enums.NotificationPriority;
 import com.aerionsoft.notification.enums.NotificationStatus;
 import jakarta.persistence.*;
@@ -33,16 +35,19 @@ public class Notification {
     @Column(name = "business_id")
     private Long businessId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, columnDefinition = "notification_type")
-    private NotificationType type;
+    @Column(nullable = false, length = 60)
+    private String typeCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "priority", nullable = false, columnDefinition = "notification_priority")
+    @Column(nullable = false, length = 20)
+    private NotificationCategory category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 20)
     private NotificationPriority priority;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "notification_status")
+    @Column(name = "status", nullable = false, length = 20)
     private NotificationStatus status;
 
     @Column(name = "title", nullable = false, length = 255)
@@ -50,9 +55,6 @@ public class Notification {
 
     @Column(name = "message", nullable = false, columnDefinition = "TEXT")
     private String message;
-
-    @Column(name = "body", nullable = false, columnDefinition = "TEXT")
-    private String body;
 
     @Column(name = "action_url", length = 500)
     private String actionUrl;
@@ -91,6 +93,18 @@ public class Notification {
     @OneToMany(mappedBy = "notification", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<NotificationDelivery> deliveries = new ArrayList<>();
 
+    public static Notification create(Long userId, NotificationType type,
+                                      String title, String message, NotificationPriority priority) {
+        Notification notification = new Notification();
+        notification.userId = userId;
+        notification.typeCode = type.getCode();
+        notification.category = type.getCategory();
+        notification.title = title;
+        notification.message = message;
+        notification.priority = priority;
+        return notification;
+    }
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
@@ -100,11 +114,13 @@ public class Notification {
         if (status == null) {
             status = NotificationStatus.UNREAD;
         }
+
         if (priority == null) {
             priority = NotificationPriority.MEDIUM;
         }
-        if (type == null) {
-//            type = NotificationType.GENERAL;
+
+        if (typeCode == null) {
+            typeCode = SystemNotificationType.GENERAL.getCode();
         }
     }
 

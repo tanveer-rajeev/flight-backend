@@ -1,7 +1,7 @@
 package com.aerionsoft.notification.entity;
 
+import com.aerionsoft.notification.enums.DeliveryStatus;
 import com.aerionsoft.notification.enums.NotificationChannelType;
-import com.aerionsoft.notification.enums.NotificationStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class NotificationDelivery{
+public class NotificationDelivery {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,7 +31,7 @@ public class NotificationDelivery{
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private NotificationStatus status;
+    private DeliveryStatus status;
 
     @Column(name = "recipient", nullable = false, length = 255)
     private String recipient;
@@ -61,7 +61,7 @@ public class NotificationDelivery{
     public static NotificationDelivery pendingFor(NotificationChannelType channel) {
         NotificationDelivery delivery = new NotificationDelivery();
         delivery.channel = channel;
-        delivery.status = NotificationStatus.PENDING;
+        delivery.status = DeliveryStatus.PENDING;
         return delivery;
     }
 
@@ -70,12 +70,12 @@ public class NotificationDelivery{
     }
 
     public void markSent() {
-        this.status = NotificationStatus.SENT;
+        this.status = DeliveryStatus.SENT;
         this.sentAt = LocalDateTime.now();
     }
 
     public void markFailed(String errorMessage) {
-        this.status = NotificationStatus.FAILED;
+        this.status = DeliveryStatus.FAILED;
         this.errorMessage = errorMessage;
         this.retryCount++;
     }

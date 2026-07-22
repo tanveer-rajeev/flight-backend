@@ -9,7 +9,7 @@ public record NotificationRequest(
         Long recipientUserId,
         NotificationType type,
         String title,
-        String body,
+        String message,
         NotificationPriority priority,
         Map<String, Object> metadata
 ) {
@@ -17,7 +17,7 @@ public record NotificationRequest(
         Objects.requireNonNull(recipientUserId, "recipientUserId must not be null");
         Objects.requireNonNull(type, "type must not be null");
         Objects.requireNonNull(title, "title must not be null");
-        Objects.requireNonNull(body, "body must not be null");
+        Objects.requireNonNull(message, "body must not be null");
         priority = (priority != null) ? priority : NotificationPriority.NORMAL;
         metadata = (metadata != null) ? Map.copyOf(metadata) : Map.of();
     }

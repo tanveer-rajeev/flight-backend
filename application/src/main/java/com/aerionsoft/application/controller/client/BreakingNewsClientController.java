@@ -65,4 +65,3 @@ public class BreakingNewsClientController extends BaseController {
         return userRepository.findById(userId).filter(User::isAgency).map(user -> BreakingNewsTarget.AGENCY).orElse(BreakingNewsTarget.USER);
     }
 }
-

@@ -176,6 +176,12 @@ public class ActivityBookingAuditSupport {
         if (newStatus == BookingStatus.REFUND) {
             return ActivityEventType.BOOKING_REFUNDED;
         }
+        if (newStatus == BookingStatus.REISSUE) {
+            return ActivityEventType.BOOKING_REISSUED;
+        }
+        if (newStatus == BookingStatus.VOID) {
+            return ActivityEventType.BOOKING_VOIDED;
+        }
         if ((newStatus == BookingStatus.TICKET_ISSUED || newStatus == BookingStatus.TICKETED)
                 && oldStatus != BookingStatus.TICKET_ISSUED
                 && oldStatus != BookingStatus.TICKETED) {

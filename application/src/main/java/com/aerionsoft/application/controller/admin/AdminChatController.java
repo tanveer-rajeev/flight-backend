@@ -30,12 +30,13 @@ import java.util.Map;
 @RequestMapping("/api/admin/chat")
 @RequiredArgsConstructor
 @Slf4j
+// Shared inbox: any authenticated admin panel user (provider=admin), matching WebSocket subscribe rules.
+@PreAuthorize("@permissionService.isAdminUser(authentication)")
 public class AdminChatController extends BaseController {
 
     private final ChatService chatService;
 
     @GetMapping("/users")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<PaginationResponseDto<ChatUserSearchItemDTO>>> searchUsers(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Long businessId,
@@ -46,7 +47,6 @@ public class AdminChatController extends BaseController {
     }
 
     @PostMapping("/conversations")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<ChatConversationDTO>> startConversation(
             @Valid @RequestBody AdminStartChatRequest request) {
         Long adminId = requireAdminId();
@@ -56,7 +56,6 @@ public class AdminChatController extends BaseController {
     }
 
     @GetMapping("/inbox")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<PaginationResponseDto<ChatConversationDTO>>> inbox(
             @RequestParam(required = false) ChatConversationStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -65,7 +64,6 @@ public class AdminChatController extends BaseController {
     }
 
     @GetMapping("/conversations/{id}")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<ChatConversationDTO>> get(
             @PathVariable Long id,
             @RequestParam(defaultValue = "true") boolean includeMessages) {
@@ -76,14 +74,12 @@ public class AdminChatController extends BaseController {
     }
 
     @PostMapping("/conversations/{id}/claim")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<ChatConversationDTO>> claim(@PathVariable Long id) {
         Long adminId = requireAdminId();
         return ResponseEntity.ok(BaseResponse.ok("Conversation claimed", chatService.claim(id, adminId)));
     }
 
     @PostMapping("/conversations/{id}/release")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<ChatConversationDTO>> release(
             @PathVariable Long id,
             Authentication authentication) {
@@ -94,7 +90,6 @@ public class AdminChatController extends BaseController {
     }
 
     @GetMapping("/conversations/{id}/messages")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<PaginationResponseDto<ChatMessageDTO>>> messages(
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
@@ -103,7 +98,6 @@ public class AdminChatController extends BaseController {
     }
 
     @PostMapping("/conversations/{id}/messages")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<ChatMessageDTO>> send(
             @PathVariable Long id,
             @Valid @RequestBody SendChatMessageRequest request) {
@@ -114,7 +108,6 @@ public class AdminChatController extends BaseController {
     }
 
     @PostMapping("/conversations/{id}/read")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<Map<String, Integer>>> markRead(@PathVariable Long id) {
         Long adminId = requireAdminId();
         int updated = chatService.markReadByAdmin(id, adminId);
@@ -122,7 +115,6 @@ public class AdminChatController extends BaseController {
     }
 
     @PostMapping("/conversations/{id}/close")
-    @PreAuthorize("hasAnyRole('admin', 'super_admin') or @permissionService.hasPermission(authentication, 'manage-live-chat')")
     public ResponseEntity<BaseResponse<ChatConversationDTO>> close(@PathVariable Long id) {
         Long adminId = requireAdminId();
         return ResponseEntity.ok(BaseResponse.ok("Conversation closed", chatService.closeByAdmin(id, adminId)));

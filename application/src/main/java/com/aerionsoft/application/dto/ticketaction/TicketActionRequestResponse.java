@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -63,4 +64,10 @@ public class TicketActionRequestResponse {
 
     /** After refund: profitLoss - supplierRefundCost + quoteTotalAmount (customer fee kept) */
     private BigDecimal netProfitLoss;
+
+    /** Reissue date (REISSUE type only, set after admin finalize COMPLETED) */
+    private LocalDate reissueDate;
+
+    /** Amount charged to agency wallet on reissue finalize (USD) */
+    private BigDecimal reissueChargeAmount;
 }

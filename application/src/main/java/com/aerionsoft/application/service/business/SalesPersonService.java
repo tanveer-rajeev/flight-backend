@@ -80,7 +80,7 @@ public class SalesPersonService {
 
         return adminUserRepository.findAllById(salesPersonIds)
                 .stream()
-                .filter(user -> user.getIsActive() == null || Boolean.TRUE.equals(user.getIsActive()))
+                .filter(user -> user.getIsActive() == null || user.getIsActive())
                 .filter(user -> currency == null
                         || user.getCurrency() == null
                         || user.getCurrency().isBlank()

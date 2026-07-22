@@ -127,6 +127,22 @@ public class PermissionService {
                 .anyMatch(a -> "ROLE_admin".equalsIgnoreCase(a.getAuthority()));
     }
 
+    /**
+     * True when the principal is an admin-panel user ({@code provider=admin}),
+     * regardless of which admin role slug they hold.
+     */
+    public boolean isAdminUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails details)) {
+            return false;
+        }
+        return "admin".equalsIgnoreCase(details.getProvider());
+    }
+
+
+
     // Check if authenticated user has permission
     public boolean hasPermission(Authentication authentication, String permissionSlug) {
         if (authentication == null || !authentication.isAuthenticated()) {

@@ -20,6 +20,7 @@ public enum BookingStatus {
     VOID,
     TICKET_CANCELLED,
     REFUND,
+    REISSUE,
     TICKET_ISSUED,
 
     // Pre-booking flight journey steps (stored in booking_timeline)

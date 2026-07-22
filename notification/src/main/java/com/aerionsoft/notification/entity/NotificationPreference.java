@@ -45,3 +45,4 @@ public class NotificationPreference {
         return pref;
     }
 }
+

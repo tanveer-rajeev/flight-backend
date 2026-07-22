@@ -1,7 +1,7 @@
 package com.aerionsoft.notification.entity;
 
+import com.aerionsoft.notification.dto.NotificationType;
 import com.aerionsoft.notification.enums.NotificationChannelType;
-import com.aerionsoft.notification.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

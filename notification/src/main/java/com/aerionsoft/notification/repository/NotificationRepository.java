@@ -1,7 +1,7 @@
 package com.aerionsoft.notification.repository;
 
+import com.aerionsoft.notification.dto.NotificationType;
 import com.aerionsoft.notification.entity.Notification;
-import com.aerionsoft.notification.enums.NotificationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

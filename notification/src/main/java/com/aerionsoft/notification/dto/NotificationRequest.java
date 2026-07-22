@@ -1,7 +1,6 @@
 package com.aerionsoft.notification.dto;
 
 import com.aerionsoft.notification.enums.NotificationPriority;
-import com.aerionsoft.notification.enums.NotificationType;
 
 import java.util.Map;
 import java.util.Objects;

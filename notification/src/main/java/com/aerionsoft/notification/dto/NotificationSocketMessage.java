@@ -1,7 +1,5 @@
 package com.aerionsoft.notification.dto;
 
-import com.aerionsoft.notification.enums.NotificationType;
-
 import java.time.LocalDateTime;
 
 public record NotificationSocketMessage(

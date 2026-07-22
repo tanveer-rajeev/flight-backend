@@ -1,8 +1,8 @@
 package com.aerionsoft.notification.entity;
 
+import com.aerionsoft.notification.dto.NotificationType;
 import com.aerionsoft.notification.enums.NotificationPriority;
 import com.aerionsoft.notification.enums.NotificationStatus;
-import com.aerionsoft.notification.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -104,7 +104,7 @@ public class Notification {
             priority = NotificationPriority.MEDIUM;
         }
         if (type == null) {
-            type = NotificationType.GENERAL;
+//            type = NotificationType.GENERAL;
         }
     }
 

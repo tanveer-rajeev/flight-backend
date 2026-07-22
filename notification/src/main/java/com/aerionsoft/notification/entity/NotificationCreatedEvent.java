@@ -1,6 +1,6 @@
 package com.aerionsoft.notification.entity;
 
-import com.aerionsoft.notification.enums.NotificationType;
+import com.aerionsoft.notification.dto.NotificationType;
 
 import java.util.Objects;
 

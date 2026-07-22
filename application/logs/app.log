@@ -366,3 +366,13 @@ Caused by: org.hibernate.query.SemanticException: Could not interpret path expre
 2026-07-21 18:24:56.952 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
 2026-07-21 18:24:56.966 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
 2026-07-21 18:24:56.976 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-22 19:01:12.191 [main] INFO  c.a.a.service.chat.ChatService - [cid=] [severity=] [event=] Created live chat conversation 55 for user 10
+2026-07-22 19:01:12.227 [main] INFO  c.a.a.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 claimed conversation 1
+2026-07-22 19:01:12.234 [main] INFO  c.a.a.service.chat.ChatService - [cid=] [severity=] [event=] Admin 100 started live chat 77 with user 10
+2026-07-22 19:01:13.228 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-22 19:01:13.252 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-22 19:01:13.261 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-22 19:01:13.265 [main] INFO  c.a.a.service.wallet.WalletService - [cid=] [severity=] [event=] Deleted CREDIT transaction 200 (amount=500.0, userId=10) and silently adjusted balance.
+2026-07-22 19:01:13.313 [main] INFO  c.a.a.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Using configured Tesseract tessdata path: C:\Users\User\AppData\Local\Temp\junit-141285766812685817\custom-tessdata
+2026-07-22 19:01:13.332 [main] WARN  c.a.a.util.TesseractDataPathResolver - [cid=] [severity=] [event=] Configured tesseract.datapath '/nonexistent/tessdata' is missing eng.traineddata; auto-detecting platform default
+2026-07-22 19:01:13.332 [main] WARN  c.a.a.util.TesseractDataPathResolver - [cid=] [severity=] [event=] No valid Tesseract tessdata directory found. Set tesseract.datapath or install tesseract-langpack-eng.

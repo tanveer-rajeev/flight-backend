@@ -1,6 +1,9 @@
 package com.aerionsoft.application.service.admin;
 import com.aerionsoft.application.dto.admin.bank.TodayDepositsSummaryResponse;
 import com.aerionsoft.application.dto.admin.summery.*;
+import com.aerionsoft.application.enums.booking.TicketActionStatus;
+import com.aerionsoft.application.enums.booking.TicketActionType;
+import com.aerionsoft.application.repository.booking.TicketActionRequestRepository;
 import com.aerionsoft.application.service.booking.BookingService;
 import com.aerionsoft.application.service.user.ActiveUserPresenceService;
 import com.aerionsoft.application.service.user.UserService;
@@ -27,14 +30,40 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class SummeryService {
+
+    private static final List<TicketActionStatus> OPEN_TICKET_ACTION_STATUSES = List.of(
+            TicketActionStatus.SUBMITTED,
+            TicketActionStatus.QUOTED,
+            TicketActionStatus.USER_CONFIRMED,
+            TicketActionStatus.ADMIN_PROCESSING
+    );
+
+    private static final List<BookingStatus> DASHBOARD_BOOKING_STATUSES = List.of(
+            BookingStatus.PROCESS,
+            BookingStatus.PNR,
+            BookingStatus.ON_HOLD,
+            BookingStatus.BOOK,
+            BookingStatus.CONFIRMED,
+            BookingStatus.VALIDATION_PROCESS,
+            BookingStatus.VALIDATION_PRICE_CHANGED,
+            BookingStatus.REPRICE
+    );
+
+    private static final List<BookingStatus> BOOKING_NEEDS_ADMIN_ACTION_STATUSES = List.of(
+            BookingStatus.PROCESS,
+            BookingStatus.PNR,
+            BookingStatus.ON_HOLD,
+            BookingStatus.BOOK,
+            BookingStatus.VALIDATION_PROCESS,
+            BookingStatus.VALIDATION_PRICE_CHANGED,
+            BookingStatus.REPRICE
+    );
+
     @Autowired
     private WalletService walletService;
     @Autowired
@@ -49,6 +78,9 @@ public class SummeryService {
 
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private TicketActionRequestRepository ticketActionRequestRepository;
 
     @Autowired
     private BusinessRepository businessRepository;
@@ -208,20 +240,133 @@ public class SummeryService {
     }
 
     public DashboardStatsResponse getDashboardStats() {
-        // Count of bookings with PNR status only
         Long pnrStatusOnlyCount = bookingRepository.countByStatus(BookingStatus.PNR);
-
-        // Count of pending deposit requests
         Long pendingDepositCount = depositRepo.countByStatus(DepositStatus.PENDING);
-
-        // Count of new businesses (pending status)
         Long newBusinessCount = businessRepository.countByStatus(BusinessStatus.PENDING);
+
+        BookingStatusPendingStats bookings = buildBookingStatusPendingStats();
+        TicketActionPendingStats ticketActions = buildTicketActionPendingStats();
+        long ticketActionNeedsAdmin = ticketActions.getTotals().getNeedsAdminAction();
+
+        long totalPendingItems = safe(newBusinessCount)
+                + safe(pendingDepositCount)
+                + safe(bookings.getNeedsAdminAction())
+                + ticketActionNeedsAdmin;
 
         return DashboardStatsResponse.builder()
                 .pnrStatusOnlyCount(pnrStatusOnlyCount)
                 .pendingDepositRequestCount(pendingDepositCount)
                 .newBusinessCount(newBusinessCount)
+                .agencies(AdminPendingQueueStats.of(safe(newBusinessCount)))
+                .deposits(AdminPendingQueueStats.of(safe(pendingDepositCount)))
+                .bookings(bookings)
+                .ticketActions(ticketActions)
+                .summary(AdminPendingSummary.builder().totalPendingItems(totalPendingItems).build())
                 .build();
+    }
+
+    private BookingStatusPendingStats buildBookingStatusPendingStats() {
+        EnumMap<BookingStatus, Long> counts = new EnumMap<>(BookingStatus.class);
+        for (BookingStatus status : DASHBOARD_BOOKING_STATUSES) {
+            counts.put(status, 0L);
+        }
+
+        for (Object[] row : bookingRepository.countGroupedByStatus(DASHBOARD_BOOKING_STATUSES)) {
+            BookingStatus status = (BookingStatus) row[0];
+            long count = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            counts.put(status, count);
+        }
+
+        long process = counts.getOrDefault(BookingStatus.PROCESS, 0L);
+        long pnr = counts.getOrDefault(BookingStatus.PNR, 0L);
+        long onHold = counts.getOrDefault(BookingStatus.ON_HOLD, 0L);
+        long book = counts.getOrDefault(BookingStatus.BOOK, 0L);
+        long confirmed = counts.getOrDefault(BookingStatus.CONFIRMED, 0L);
+        long validationProcess = counts.getOrDefault(BookingStatus.VALIDATION_PROCESS, 0L);
+        long validationPriceChanged = counts.getOrDefault(BookingStatus.VALIDATION_PRICE_CHANGED, 0L);
+        long reprice = counts.getOrDefault(BookingStatus.REPRICE, 0L);
+
+        long totalOpen = counts.values().stream().mapToLong(Long::longValue).sum();
+        long needsAdminAction = BOOKING_NEEDS_ADMIN_ACTION_STATUSES.stream()
+                .mapToLong(status -> counts.getOrDefault(status, 0L))
+                .sum();
+
+        return BookingStatusPendingStats.builder()
+                .process(process)
+                .pnr(pnr)
+                .onHold(onHold)
+                .book(book)
+                .confirmed(confirmed)
+                .validationProcess(validationProcess)
+                .validationPriceChanged(validationPriceChanged)
+                .reprice(reprice)
+                .totalOpen(totalOpen)
+                .needsAdminAction(needsAdminAction)
+                .pendingApproval(pnr)
+                .build();
+    }
+
+    private TicketActionPendingStats buildTicketActionPendingStats() {
+        Map<TicketActionType, EnumMap<TicketActionStatus, Long>> grouped = new EnumMap<>(TicketActionType.class);
+        for (TicketActionType type : TicketActionType.values()) {
+            grouped.put(type, new EnumMap<>(TicketActionStatus.class));
+        }
+
+        for (Object[] row : ticketActionRequestRepository.countGroupedByTypeAndStatus(OPEN_TICKET_ACTION_STATUSES)) {
+            TicketActionType type = (TicketActionType) row[0];
+            TicketActionStatus status = (TicketActionStatus) row[1];
+            long count = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            grouped.computeIfAbsent(type, k -> new EnumMap<>(TicketActionStatus.class))
+                    .put(status, count);
+        }
+
+        TicketActionTypeBreakdown totals = aggregateTicketActionBreakdown(grouped);
+        return TicketActionPendingStats.builder()
+                .totals(totals)
+                .cancel(breakdownForType(grouped, TicketActionType.CANCEL))
+                .voidType(breakdownForType(grouped, TicketActionType.VOID))
+                .refund(breakdownForType(grouped, TicketActionType.REFUND))
+                .reissue(breakdownForType(grouped, TicketActionType.REISSUE))
+                .build();
+    }
+
+    private TicketActionTypeBreakdown breakdownForType(
+            Map<TicketActionType, EnumMap<TicketActionStatus, Long>> grouped,
+            TicketActionType type) {
+        EnumMap<TicketActionStatus, Long> counts = grouped.getOrDefault(type, new EnumMap<>(TicketActionStatus.class));
+        return toBreakdown(counts);
+    }
+
+    private TicketActionTypeBreakdown aggregateTicketActionBreakdown(
+            Map<TicketActionType, EnumMap<TicketActionStatus, Long>> grouped) {
+        EnumMap<TicketActionStatus, Long> totals = new EnumMap<>(TicketActionStatus.class);
+        for (EnumMap<TicketActionStatus, Long> byStatus : grouped.values()) {
+            byStatus.forEach((status, count) ->
+                    totals.merge(status, count, Long::sum));
+        }
+        return toBreakdown(totals);
+    }
+
+    private TicketActionTypeBreakdown toBreakdown(EnumMap<TicketActionStatus, Long> counts) {
+        long submitted = counts.getOrDefault(TicketActionStatus.SUBMITTED, 0L);
+        long quoted = counts.getOrDefault(TicketActionStatus.QUOTED, 0L);
+        long userConfirmed = counts.getOrDefault(TicketActionStatus.USER_CONFIRMED, 0L);
+        long adminProcessing = counts.getOrDefault(TicketActionStatus.ADMIN_PROCESSING, 0L);
+        long totalOpen = submitted + quoted + userConfirmed + adminProcessing;
+        long needsAdminAction = submitted + userConfirmed + adminProcessing;
+
+        return TicketActionTypeBreakdown.builder()
+                .submitted(submitted)
+                .quoted(quoted)
+                .userConfirmed(userConfirmed)
+                .adminProcessing(adminProcessing)
+                .totalOpen(totalOpen)
+                .needsAdminAction(needsAdminAction)
+                .build();
+    }
+
+    private static long safe(Long value) {
+        return value != null ? value : 0L;
     }
 
     public ActiveUsersResponse getActiveUsers() {

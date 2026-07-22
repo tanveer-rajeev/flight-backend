@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -199,6 +200,74 @@ public class BookingSupplierInvoiceService {
         }
         adjustment.setDetails(details);
         supplierTransactionHistoryRepository.save(adjustment);
+    }
+
+    /**
+     * Record a reissue charge against the booking's existing supplier/ledger linkage.
+     * Increases supplier payable and appends an audit row (append-only).
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void recordReissueCharge(
+            Booking booking,
+            BigDecimal supplierReissueCostUsd,
+            LocalDate reissueDate,
+            Long ticketActionRequestId) {
+        if (booking == null || booking.getId() == null) {
+            return;
+        }
+        BigDecimal amount = supplierReissueCostUsd != null ? supplierReissueCostUsd : BigDecimal.ZERO;
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            log.info("Skipping supplier reissue charge for booking [" + booking.getId() + "]: zero amount");
+            return;
+        }
+
+        List<SupplierTransactionHistory> originals = findReversibleTransactions(booking);
+        if (originals.isEmpty()) {
+            log.info("No supplier invoice transaction found for reissue on booking [" + booking.getId() + "]");
+            return;
+        }
+
+        SupplierTransactionHistory original = originals.get(0);
+        if (original.getSupplierId() != null) {
+            supplierRepository.findById(original.getSupplierId()).ifPresent(supplier -> {
+                BigDecimal current = supplier.getPayableAmount() != null ? supplier.getPayableAmount() : BigDecimal.ZERO;
+                supplier.setPayableAmount(current.add(amount));
+                supplierRepository.save(supplier);
+            });
+        }
+
+        String pnrLabel = booking.getPnr() != null && !booking.getPnr().isBlank() ? booking.getPnr() : "—";
+        String reissueDateLabel = reissueDate != null ? reissueDate.toString() : "—";
+        SupplierTransactionHistory reissueTxn = SupplierTransactionHistory.builder()
+                .invoiceItemId(original.getInvoiceItemId())
+                .invoiceId(original.getInvoiceId())
+                .agencyId(original.getAgencyId())
+                .ledgerId(original.getLedgerId())
+                .supplierId(original.getSupplierId())
+                .payableAmount(amount)
+                .title("Reissue: " + pnrLabel)
+                .description("Ticket reissue for booking id " + booking.getId()
+                        + " | ticketActionRequestId " + ticketActionRequestId
+                        + " | reissueDate " + reissueDateLabel
+                        + " | supplierReissueCost " + amount.toPlainString())
+                .createdDate(UserDateTimeUtil.now())
+                .build();
+
+        List<SupplierTransactionHistoryDetail> details = new ArrayList<>();
+        details.add(SupplierTransactionHistoryDetail.builder().key("pnr").value(pnrLabel).build());
+        details.add(SupplierTransactionHistoryDetail.builder()
+                .key("bookingId").value(String.valueOf(booking.getId())).build());
+        details.add(SupplierTransactionHistoryDetail.builder()
+                .key("ticketActionRequestId").value(String.valueOf(ticketActionRequestId)).build());
+        details.add(SupplierTransactionHistoryDetail.builder()
+                .key("reissueDate").value(reissueDateLabel).build());
+        details.add(SupplierTransactionHistoryDetail.builder()
+                .key("supplierReissueCost").value(amount.toPlainString()).build());
+        for (SupplierTransactionHistoryDetail detail : details) {
+            detail.setSupplierTransactionHistory(reissueTxn);
+        }
+        reissueTxn.setDetails(details);
+        supplierTransactionHistoryRepository.save(reissueTxn);
     }
 
     private BigDecimal normalizeSupplierRefundCost(BigDecimal supplierRefundCost) {

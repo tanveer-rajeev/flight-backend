@@ -28,6 +28,8 @@ public enum ActivityEventType {
     BOOKING_CANCELLED(ActivityEventCategory.BOOKING, "Booking cancelled"),
     BOOKING_STATUS_CHANGED(ActivityEventCategory.BOOKING, "Booking status changed"),
     BOOKING_REFUNDED(ActivityEventCategory.BOOKING, "Booking refunded"),
+    BOOKING_REISSUED(ActivityEventCategory.BOOKING, "Booking reissued"),
+    BOOKING_VOIDED(ActivityEventCategory.BOOKING, "Booking voided"),
     BOOKING_DELETED(ActivityEventCategory.BOOKING, "Booking deleted"),
     TICKET_ISSUED(ActivityEventCategory.BOOKING, "Ticket issued"),
     BOOKING_UPDATED(ActivityEventCategory.BOOKING, "Booking updated"),

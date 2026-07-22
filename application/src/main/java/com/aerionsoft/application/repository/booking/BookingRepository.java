@@ -67,6 +67,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
     // Count bookings with PNR status only
     Long countByStatus(BookingStatus status);
 
+    @Query("""
+            SELECT b.status, COUNT(b)
+            FROM Booking b
+            WHERE b.status IN :statuses
+            GROUP BY b.status
+            """)
+    List<Object[]> countGroupedByStatus(@Param("statuses") Collection<BookingStatus> statuses);
+
     // Sabre/Galileo PNR bookings with a payment deadline for scheduled auto-cancel
     @Query("""
         SELECT b FROM Booking b

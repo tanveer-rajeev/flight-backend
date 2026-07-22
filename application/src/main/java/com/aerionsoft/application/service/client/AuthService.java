@@ -198,7 +198,14 @@ public class AuthService extends BaseController {
         Optional<User> userOpt = userRepo.findByEmail(emailLower);
         if (userOpt.isEmpty()) {
             activityAuthAuditSupport.logLoginFailed(emailLower, "User not found", false, ip, userAgent);
-            throw new ResourceNotFoundException("User");
+            throw new ResourceNotFoundException("User Not Found");
+        }
+
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(emailLower, req.getPassword()));
+        } catch (BadCredentialsException ex) {
+            activityAuthAuditSupport.logLoginFailed(emailLower, "Invalid credentials", false, ip, userAgent);
+            throw ex;
         }
 
         User user = userOpt.get();
@@ -211,13 +218,6 @@ public class AuthService extends BaseController {
         if (!user.isVerified()) {
             activityAuthAuditSupport.logLoginFailed(emailLower, "Account not verified", false, ip, userAgent);
             throw ServiceExceptions.unauthorized("Account not verified!");
-        }
-
-        try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(emailLower, req.getPassword()));
-        } catch (BadCredentialsException ex) {
-            activityAuthAuditSupport.logLoginFailed(emailLower, "Invalid credentials", false, ip, userAgent);
-            throw ex;
         }
 
         Set<Role> userRoles = roleAssignmentRepo.findRolesByEntity( "USER", user.getId());
@@ -317,7 +317,7 @@ public class AuthService extends BaseController {
         String newAccessToken = jwtUtil.generateToken(userDetails, "user", user.isAgency());
 
         // activityAuthAuditSupport.logTokenRefresh(
-        //         com.aerionsoft.application.util.ActorContext.forUser(user.getId(), user.getEmail()),
+        //         com.example.tufantrip.util.ActorContext.forUser(user.getId(), user.getEmail()),
         //         ip,
         //         userAgent);
 

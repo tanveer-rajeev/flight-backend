@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -27,4 +28,10 @@ public class AdminTicketActionFinalizeRequest {
      */
     @DecimalMin(value = "0.0", inclusive = true, message = "supplierRefundCost must be zero or greater")
     private BigDecimal supplierRefundCost;
+
+    /**
+     * Required when completing a {@code REISSUE} ticket action ({@code resultStatus = COMPLETED}).
+     * Calendar date the ticket was reissued with the airline.
+     */
+    private LocalDate reissueDate;
 }

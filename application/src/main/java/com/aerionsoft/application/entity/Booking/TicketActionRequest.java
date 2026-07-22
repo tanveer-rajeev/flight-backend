@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -124,6 +125,10 @@ public class TicketActionRequest {
     /** Remaining supplier payable for the PNR (= supplierRefundCost) */
     @Column(name = "remaining_supplier_payable", precision = 19, scale = 2)
     private BigDecimal remainingSupplierPayable;
+
+    /** Date the ticket was reissued with the airline (REISSUE type; set on submit, may be updated on finalize) */
+    @Column(name = "reissue_date")
+    private LocalDate reissueDate;
 
     @PrePersist
     protected void onCreate() {

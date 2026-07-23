@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -34,4 +35,10 @@ public class AdminTicketActionFinalizeRequest {
      * Calendar date the ticket was reissued with the airline.
      */
     private LocalDate reissueDate;
+
+    /**
+     * Optional segment date/time updates for REISSUE finalize.
+     * When provided, updates {@code segment_airport.time} and refreshes travel summary dates on the booking.
+     */
+    private List<ReissueSegmentDateUpdate> segments;
 }

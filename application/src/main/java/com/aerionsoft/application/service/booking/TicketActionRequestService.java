@@ -474,7 +474,8 @@ public class TicketActionRequestService {
                 supplierReissueCost,
                 reissueDate,
                 tar.getId(),
-                reason);
+                reason,
+                request.getSegments());
 
         return ticketActionRequestRepository.save(tar);
     }

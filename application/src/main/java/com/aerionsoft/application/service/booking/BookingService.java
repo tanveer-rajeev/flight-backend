@@ -11,6 +11,7 @@ import com.aerionsoft.application.dto.business.BusinessSimpleDto;
 import com.aerionsoft.application.dto.client.user.UserDto;
 import com.aerionsoft.application.dto.common.TravellerShortDto;
 import com.aerionsoft.application.dto.flight.StatusChangeRequest;
+import com.aerionsoft.application.dto.ticketaction.ReissueSegmentDateUpdate;
 import com.aerionsoft.application.dto.traveller.TravellerResponse;
 import com.aerionsoft.application.entity.Booking.Booking;
 import com.aerionsoft.application.entity.Booking.BookingPackageBaggage;
@@ -2162,6 +2163,104 @@ public class BookingService implements BookingInterface {
     }
 
     /**
+     * Updates segment departure/arrival times on an existing booking (used on REISSUE finalize).
+     * Matches segments by {@code segmentOrder} and refreshes travel_information summary dates.
+     */
+    public void updateBookingSegmentDates(Booking booking, List<ReissueSegmentDateUpdate> segmentUpdates) {
+        if (segmentUpdates == null || segmentUpdates.isEmpty()) {
+            return;
+        }
+
+        com.aerionsoft.application.entity.group.TravelInformation travelInfo =
+                travelInformationRepository.findByBookingId(booking.getId());
+        if (travelInfo == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Booking has no travel information — cannot update segment dates");
+        }
+
+        List<BookingSegment> existingSegments =
+                bookingSegmentRepository.findByTravelInformationIdOrderBySegmentOrderAsc(travelInfo.getId());
+        if (existingSegments == null || existingSegments.isEmpty()) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Booking has no segments — cannot update segment dates");
+        }
+
+        Map<Integer, BookingSegment> segmentsByOrder = existingSegments.stream()
+                .filter(s -> s.getSegmentOrder() != null)
+                .collect(Collectors.toMap(BookingSegment::getSegmentOrder, s -> s, (a, b) -> a));
+
+        for (ReissueSegmentDateUpdate update : segmentUpdates) {
+            if (update.getSegmentOrder() == null) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "segmentOrder is required for each segment date update");
+            }
+            boolean hasDepTime = update.getDepTime() != null && !update.getDepTime().isBlank();
+            boolean hasArrTime = update.getArrTime() != null && !update.getArrTime().isBlank();
+            if (!hasDepTime && !hasArrTime) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "Each segment update must include depTime and/or arrTime (segmentOrder="
+                                + update.getSegmentOrder() + ")");
+            }
+
+            BookingSegment segment = segmentsByOrder.get(update.getSegmentOrder());
+            if (segment == null) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "No segment with segmentOrder " + update.getSegmentOrder() + " on this booking");
+            }
+
+            if (hasDepTime) {
+                SegmentAirport origin = segmentAirportRepository
+                        .findFirstBySegmentIdAndAirportTypeOrderByIdAsc(segment.getId(), "ORIGIN")
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_ERROR,
+                                "Segment " + update.getSegmentOrder() + " has no origin airport record"));
+                origin.setTime(update.getDepTime().trim());
+                segmentAirportRepository.save(origin);
+            }
+
+            if (hasArrTime) {
+                SegmentAirport destination = segmentAirportRepository
+                        .findFirstBySegmentIdAndAirportTypeOrderByIdAsc(segment.getId(), "DESTINATION")
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_ERROR,
+                                "Segment " + update.getSegmentOrder() + " has no destination airport record"));
+                destination.setTime(update.getArrTime().trim());
+                segmentAirportRepository.save(destination);
+            }
+        }
+
+        refreshTravelInformationDatesFromSegments(travelInfo, existingSegments);
+        travelInformationRepository.save(travelInfo);
+    }
+
+    private void refreshTravelInformationDatesFromSegments(
+            com.aerionsoft.application.entity.group.TravelInformation travelInfo,
+            List<BookingSegment> segments) {
+        BookingSegment firstSegment = segments.get(0);
+        BookingSegment lastSegment = segments.get(segments.size() - 1);
+
+        segmentAirportRepository.findFirstBySegmentIdAndAirportTypeOrderByIdAsc(firstSegment.getId(), "ORIGIN")
+                .ifPresent(origin -> {
+                    travelInfo.setDepartureTime(origin.getTime());
+                    travelInfo.setDepartureDate(extractIsoDatePart(origin.getTime()));
+                });
+
+        segmentAirportRepository.findFirstBySegmentIdAndAirportTypeOrderByIdAsc(lastSegment.getId(), "DESTINATION")
+                .ifPresent(destination -> {
+                    travelInfo.setArrivalTime(destination.getTime());
+                    travelInfo.setArrivalDate(extractIsoDatePart(destination.getTime()));
+                });
+    }
+
+    private String extractIsoDatePart(String dateTime) {
+        if (dateTime == null || dateTime.isBlank()) {
+            return null;
+        }
+        if (dateTime.contains("T")) {
+            return dateTime.split("T")[0];
+        }
+        return dateTime.length() >= 10 ? dateTime.substring(0, 10) : dateTime;
+    }
+
+    /**
      * Complete a REISSUE ticket action: charge agency wallet, add supplier payable, set booking to REISSUE.
      * Runs in one DB transaction — supplier failure rolls back wallet debit and status change.
      */
@@ -2172,7 +2271,8 @@ public class BookingService implements BookingInterface {
             BigDecimal supplierReissueCostUsd,
             java.time.LocalDate reissueDate,
             Long ticketActionRequestId,
-            String reason) {
+            String reason,
+            List<ReissueSegmentDateUpdate> segmentUpdates) {
         if (chargeAmountUsd == null || chargeAmountUsd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR,
                     "Reissue charge amount must be greater than zero");
@@ -2205,11 +2305,15 @@ public class BookingService implements BookingInterface {
                 chargeAmountUsd.doubleValue(),
                 "Ticket action reissue charge for booking " + booking.getId()
                         + " (reissue date " + (reissueDate != null ? reissueDate : "—") + ")",
-                false,
+                true,
                 "ticket_action_reissue_" + booking.getPnr());
 
         bookingSupplierInvoiceService.recordReissueCharge(
                 booking, supplierReissueCostUsd, reissueDate, ticketActionRequestId);
+
+        if (segmentUpdates != null && !segmentUpdates.isEmpty()) {
+            updateBookingSegmentDates(booking, segmentUpdates);
+        }
 
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(BookingStatus.REISSUE);
@@ -2228,6 +2332,11 @@ public class BookingService implements BookingInterface {
         metadata.put("reissueDate", reissueDate != null ? reissueDate.toString() : null);
         metadata.put("reissueChargeAmountUsd", chargeAmountUsd);
         metadata.put("supplierReissueCost", supplierReissueCostUsd);
+        metadata.put("balanceCheckBypassed", true);
+        if (segmentUpdates != null && !segmentUpdates.isEmpty()) {
+            metadata.put("segmentsUpdated", true);
+            metadata.put("segmentDateUpdates", segmentUpdates);
+        }
         auditBookingStatusChange(booking, oldStatus, BookingStatus.REISSUE, reason, metadata);
 
         try {

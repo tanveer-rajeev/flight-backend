@@ -1,9 +1,0 @@
-2026-07-18 12:31:04.592 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.PoolBase - [cid=] [severity=] [event=] HikariPool-1 - Failed to validate connection org.postgresql.jdbc.PgConnection@520cb735 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
-2026-07-18 12:31:48.078 [SpringApplicationShutdownHook] INFO  o.s.b.w.e.tomcat.GracefulShutdown - [cid=] [severity=] [event=] Commencing graceful shutdown. Waiting for active requests to complete
-2026-07-18 12:31:48.081 [tomcat-shutdown] INFO  o.s.b.w.e.tomcat.GracefulShutdown - [cid=] [severity=] [event=] Graceful shutdown complete
-2026-07-18 12:31:48.086 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - [cid=] [severity=] [event=] Stopping...
-2026-07-18 12:31:48.086 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - [cid=] [severity=] [event=] BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3d6dc2]]
-2026-07-18 12:31:48.087 [SpringApplicationShutdownHook] INFO  o.s.m.s.b.SimpleBrokerMessageHandler - [cid=] [severity=] [event=] Stopped.
-2026-07-18 12:31:50.205 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - [cid=] [severity=] [event=] Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-07-18 12:31:50.209 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - [cid=] [severity=] [event=] HikariPool-1 - Shutdown initiated...
-2026-07-18 12:31:50.213 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - [cid=] [severity=] [event=] HikariPool-1 - Shutdown completed.

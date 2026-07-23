@@ -10,7 +10,8 @@ import com.aerionsoft.application.exception.ServiceExceptions;
 import com.aerionsoft.application.enums.common.ErrorCode;
 import com.aerionsoft.application.exception.BusinessException;
 import com.aerionsoft.application.exception.ResourceNotFoundException;
-import com.aerionsoft.application.dto.client.auth.LoginRequest;
+import com.aerionsoft.application.dto.admin.auth.LoginRequest;
+import com.aerionsoft.application.dto.admin.auth.SendLoginOtpRequest;
 import com.aerionsoft.application.dto.client.auth.LoginResponse;
 import com.aerionsoft.application.dto.client.auth.OtpVerificationRequest;
 import com.aerionsoft.application.dto.client.auth.RegistrationRequest;
@@ -94,6 +95,33 @@ public class AdminAuthService {
     }
 
     public void sendOtp(AdminUser adminUser) {
+        OtpToken lastOtp = otpTokenRepo.findTopByAdminUserOrderByCreatedAtDesc(adminUser);
+        if (lastOtp != null && lastOtp.getCreatedAt().isAfter(UserDateTimeUtil.now().minusMinutes(2))) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE,
+                    "OTP already sent recently. Please wait 2 minutes before requesting again.");
+        }
+
+        createAndSendOtp(adminUser);
+    }
+
+    public void sendLoginOtp(SendLoginOtpRequest req, String ip, String userAgent) {
+        AdminUser adminUser = validateAdminCredentials(req.getEmail(), req.getPassword(), ip, userAgent);
+        sendLoginOtp(adminUser);
+    }
+
+    private void sendLoginOtp(AdminUser adminUser) {
+        if (hasValidUnusedLoginOtp(adminUser)) {
+            return;
+        }
+        createAndSendOtp(adminUser);
+    }
+
+    private boolean hasValidUnusedLoginOtp(AdminUser adminUser) {
+        return otpTokenRepo.findTopByAdminUserAndUsedIsFalseAndExpiresAtAfterOrderByCreatedAtDesc(
+                adminUser, UserDateTimeUtil.now()).isPresent();
+    }
+
+    private void createAndSendOtp(AdminUser adminUser) {
         String otp = String.format("%06d", new Random().nextInt(999998));
         OtpToken otpToken = OtpToken.builder()
                 .adminUser(adminUser)
@@ -101,7 +129,6 @@ public class AdminAuthService {
                 .build();
         otpTokenRepo.save(otpToken);
 
-        // Send OTP via email using database credentials
         emailService.sendOtp(adminUser.getEmail(), otp);
     }
 
@@ -124,24 +151,8 @@ public class AdminAuthService {
     }
 
     public LoginResponse login(LoginRequest req, String ip, String userAgent) {
-        String email = EmailUtils.normalize(req.getEmail());
-        AdminUser adminUser = adminUserRepo.findByEmail(email).orElse(null);
-
-        if (adminUser == null) {
-            activityAuthAuditSupport.logLoginFailed(email, "User not found", true, ip, userAgent);
-            throw new ResourceNotFoundException("User");
-        }
-
-        if (!adminUser.getIsVerified()) {
-            activityAuthAuditSupport.logLoginFailed(email, "Account not verified", true, ip, userAgent);
-            throw ServiceExceptions.unauthorized("Account not verified!");
-        }
-
-        if (!passwordEncoder.matches(req.getPassword(), adminUser.getPassword())) {
-            activityAuthAuditSupport.logLoginFailed(email, "Invalid password", true, ip, userAgent);
-            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "Invalid password");
-        }
-
+        AdminUser adminUser = validateAdminCredentials(req.getEmail(), req.getPassword(), ip, userAgent);
+        validateLoginOtp(adminUser, req.getOtp());
 
         Set<Role> userRoles = roleAssignmentRepo.findRolesByEntity("ADMIN", adminUser.getId());
 
@@ -258,6 +269,45 @@ public class AdminAuthService {
 
         // Return new access token with same refresh token
         return new LoginResponse(newAccessToken);
+    }
+
+    private AdminUser validateAdminCredentials(String email, String password, String ip, String userAgent) {
+        String normalizedEmail = EmailUtils.normalize(email);
+        AdminUser adminUser = adminUserRepo.findByEmail(normalizedEmail).orElse(null);
+
+        if (adminUser == null) {
+            activityAuthAuditSupport.logLoginFailed(normalizedEmail, "User not found", true, ip, userAgent);
+            throw new ResourceNotFoundException("User");
+        }
+
+        if (!adminUser.getIsVerified()) {
+            activityAuthAuditSupport.logLoginFailed(normalizedEmail, "Account not verified", true, ip, userAgent);
+            throw ServiceExceptions.unauthorized("Account not verified!");
+        }
+
+        if (!Boolean.TRUE.equals(adminUser.getIsActive())) {
+            activityAuthAuditSupport.logLoginFailed(normalizedEmail, "Account is not active", true, ip, userAgent);
+            throw ServiceExceptions.unauthorized("Account is not active!");
+        }
+
+        if (!passwordEncoder.matches(password, adminUser.getPassword())) {
+            activityAuthAuditSupport.logLoginFailed(normalizedEmail, "Invalid password", true, ip, userAgent);
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "Invalid password");
+        }
+
+        return adminUser;
+    }
+
+    private void validateLoginOtp(AdminUser adminUser, String otp) {
+        OtpToken otpToken = otpTokenRepo.findByAdminUserAndOtpCodeAndUsedIsFalse(adminUser, otp)
+                .orElseThrow(() -> ServiceExceptions.unauthorized("Invalid OTP"));
+
+        if (otpToken.getExpiresAt().isBefore(UserDateTimeUtil.now())) {
+            throw ServiceExceptions.unauthorized("OTP expired!");
+        }
+
+        otpToken.setUsed(true);
+        otpTokenRepo.save(otpToken);
     }
 
 }

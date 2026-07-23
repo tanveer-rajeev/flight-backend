@@ -14,9 +14,13 @@ import java.util.Map;
 public class ActivityAdminAuditSupport {
 
     private final ActivityLogService activityLogService;
+    private final ActivityAgencyContextSupport agencyContextSupport;
 
-    public ActivityAdminAuditSupport(ActivityLogService activityLogService) {
+    public ActivityAdminAuditSupport(
+            ActivityLogService activityLogService,
+            ActivityAgencyContextSupport agencyContextSupport) {
         this.activityLogService = activityLogService;
+        this.agencyContextSupport = agencyContextSupport;
     }
 
     public void logDepositDecision(Long depositId, Long userId, DepositStatus status, Double amount, String adminRemarks) {
@@ -31,6 +35,7 @@ public class ActivityAdminAuditSupport {
         if (adminRemarks != null && !adminRemarks.isBlank()) {
             metadata.put("adminRemarks", adminRemarks);
         }
+        agencyContextSupport.enrichMetadataFromUserId(metadata, userId);
 
         activityLogService.log(ActivityLogService.ActivityLogEntry.builder()
                 .eventType(eventType)
@@ -49,6 +54,8 @@ public class ActivityAdminAuditSupport {
         if (cause != null && !cause.isBlank()) {
             metadata.put("cause", cause);
         }
+        agencyContextSupport.resolveFromBusinessId(businessId)
+                .ifPresent(snapshot -> agencyContextSupport.putSnapshot(metadata, snapshot));
 
         activityLogService.log(ActivityLogService.ActivityLogEntry.builder()
                 .eventType(ActivityEventType.CREDIT_LIMIT_CHANGED)
@@ -66,6 +73,8 @@ public class ActivityAdminAuditSupport {
         if (adminRemarks != null && !adminRemarks.isBlank()) {
             metadata.put("adminRemarks", adminRemarks);
         }
+        agencyContextSupport.resolveFromBusinessId(businessId)
+                .ifPresent(snapshot -> agencyContextSupport.putSnapshot(metadata, snapshot));
 
         activityLogService.log(ActivityLogService.ActivityLogEntry.builder()
                 .eventType(eventType)
@@ -104,6 +113,7 @@ public class ActivityAdminAuditSupport {
         if (sourceId != null) {
             metadata.put("sourceId", sourceId);
         }
+        agencyContextSupport.enrichMetadataFromUserId(metadata, userId);
 
         activityLogService.log(ActivityLogService.ActivityLogEntry.builder()
                 .eventType(eventType)

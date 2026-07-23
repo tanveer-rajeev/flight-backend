@@ -47,6 +47,7 @@ public class ChatService {
     private final ChatRealtimePublisher realtimePublisher;
     private final ActiveUserPresenceService presenceService;
     private final ChatOfflineNotifyService offlineNotifyService;
+    private final ChatConversationStatsSupport statsSupport;
 
     @Transactional
     public ChatConversationDTO createOrGetOpenConversation(Long userId, CreateChatConversationRequest request) {
@@ -145,6 +146,7 @@ public class ChatService {
                 .user(user)
                 .status(ChatConversationStatus.ACTIVE)
                 .assignedAdminId(adminId)
+                .claimedAt(UserDateTimeUtil.now())
                 .subject(StringUtils.hasText(request.getSubject())
                         ? request.getSubject().trim()
                         : "Live chat")
@@ -610,8 +612,10 @@ public class ChatService {
     private PaginationResponseDto<ChatConversationDTO> toPage(Page<ChatConversation> page,
                                                               ChatSenderType unreadFrom,
                                                               boolean adminView) {
+        List<Long> ids = page.getContent().stream().map(ChatConversation::getId).collect(Collectors.toList());
+        ChatConversationStatsSupport.StatsContext statsContext = statsSupport.loadContext(ids);
         List<ChatConversationDTO> content = page.getContent().stream()
-                .map(c -> toConversationDto(c, unreadFrom, false, adminView))
+                .map(c -> toConversationDto(c, unreadFrom, false, adminView, statsContext))
                 .collect(Collectors.toList());
         return PaginationResponseDto.<ChatConversationDTO>builder()
                 .content(content)
@@ -628,12 +632,21 @@ public class ChatService {
                                                    ChatSenderType unreadFrom,
                                                    boolean includeMessages,
                                                    boolean adminView) {
+        return toConversationDto(conversation, unreadFrom, includeMessages, adminView, null);
+    }
+
+    private ChatConversationDTO toConversationDto(ChatConversation conversation,
+                                                   ChatSenderType unreadFrom,
+                                                   boolean includeMessages,
+                                                   boolean adminView,
+                                                   ChatConversationStatsSupport.StatsContext statsContext) {
         User user = conversation.getUser();
         String adminName = null;
+        String adminEmail = null;
         if (conversation.getAssignedAdminId() != null) {
-            adminName = adminUserRepository.findById(conversation.getAssignedAdminId())
-                    .map(a -> displayName(a.getFullName(), a.getEmail()))
-                    .orElse(null);
+            var adminOpt = adminUserRepository.findById(conversation.getAssignedAdminId());
+            adminName = adminOpt.map(a -> displayName(a.getFullName(), a.getEmail())).orElse(null);
+            adminEmail = adminOpt.map(AdminUser::getEmail).orElse(null);
         }
 
         long unread = adminView
@@ -659,8 +672,10 @@ public class ChatService {
                 .userFullName(user != null ? user.getFullName() : null)
                 .userEmail(user != null ? user.getEmail() : null)
                 .businessId(user != null && user.getBusiness() != null ? user.getBusiness().getId() : null)
+                .userBusinessName(user != null && user.getBusiness() != null ? user.getBusiness().getCompanyName() : null)
                 .assignedAdminId(conversation.getAssignedAdminId())
                 .assignedAdminName(adminName)
+                .assignedAdminEmail(adminEmail)
                 .status(conversation.getStatus())
                 .subject(conversation.getSubject())
                 .lastMessageAt(conversation.getLastMessageAt())
@@ -670,7 +685,8 @@ public class ChatService {
                 .closedByType(conversation.getClosedByType())
                 .closedById(conversation.getClosedById())
                 .createdAt(conversation.getCreatedAt())
-                .updatedAt(conversation.getUpdatedAt());
+                .updatedAt(conversation.getUpdatedAt())
+                .stats(statsSupport.build(conversation, adminView, statsContext));
 
         if (includeMessages) {
             List<ChatMessage> messages = loaded;

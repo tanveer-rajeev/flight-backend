@@ -6,7 +6,10 @@ import com.aerionsoft.application.enums.booking.TicketActionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,4 +32,18 @@ public interface TicketActionRequestRepository extends JpaRepository<TicketActio
     boolean existsByBookingIdAndStatus(Long bookingId, TicketActionStatus status);
 
     List<TicketActionRequest> findByBookingIdAndStatus(Long bookingId, TicketActionStatus status);
+
+    long countByStatus(TicketActionStatus status);
+
+    long countByTypeAndStatus(TicketActionType type, TicketActionStatus status);
+
+    long countByStatusIn(Collection<TicketActionStatus> statuses);
+
+    @Query("""
+            SELECT t.type, t.status, COUNT(t)
+            FROM TicketActionRequest t
+            WHERE t.status IN :statuses
+            GROUP BY t.type, t.status
+            """)
+    List<Object[]> countGroupedByTypeAndStatus(@Param("statuses") Collection<TicketActionStatus> statuses);
 }

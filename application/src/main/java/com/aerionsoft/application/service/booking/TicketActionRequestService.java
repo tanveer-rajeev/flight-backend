@@ -21,6 +21,7 @@ import com.aerionsoft.application.enums.booking.TicketActionType;
 import com.aerionsoft.application.repository.booking.TicketActionRequestRepository;
 import com.aerionsoft.application.repository.user.UserRepository;
 import com.aerionsoft.application.repository.user.AdminUserRepository;
+import com.aerionsoft.application.service.audit.ActivityTicketActionAuditSupport;
 import com.aerionsoft.application.service.notification.NotificationHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +49,7 @@ public class TicketActionRequestService {
     private final NotificationHelper notificationHelper;
     private final AdminUserRepository adminUserRepository;
     private final TimestampMapper timestampMapper;
+    private final ActivityTicketActionAuditSupport activityTicketActionAuditSupport;
 
     public TicketActionRequestService(TicketActionRequestRepository ticketActionRequestRepository,
                                       BookingService bookingService,
@@ -54,7 +57,8 @@ public class TicketActionRequestService {
                                       CurrencyService currencyService,
                                       NotificationHelper notificationHelper,
                                       AdminUserRepository adminUserRepository,
-                                      TimestampMapper timestampMapper) {
+                                      TimestampMapper timestampMapper,
+                                      ActivityTicketActionAuditSupport activityTicketActionAuditSupport) {
         this.ticketActionRequestRepository = ticketActionRequestRepository;
         this.bookingService = bookingService;
         this.userRepository = userRepository;
@@ -62,6 +66,7 @@ public class TicketActionRequestService {
         this.notificationHelper = notificationHelper;
         this.adminUserRepository = adminUserRepository;
         this.timestampMapper = timestampMapper;
+        this.activityTicketActionAuditSupport = activityTicketActionAuditSupport;
     }
 
     private static final List<TicketActionStatus> OPEN_STATUSES = List.of(
@@ -153,15 +158,24 @@ public class TicketActionRequestService {
 
         User requester = userRepository.findById(currentUserId).orElseThrow(() -> new ResourceNotFoundException("User"));
 
+        if (request.getType() == TicketActionType.REISSUE && request.getReissueDate() == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "reissueDate is required when submitting a REISSUE request");
+        }
+
         TicketActionRequest entity = TicketActionRequest.builder()
                 .booking(booking)
                 .requester(requester)
                 .type(request.getType())
                 .status(TicketActionStatus.SUBMITTED)
                 .reason(request.getReason())
+                .reissueDate(request.getType() == TicketActionType.REISSUE ? request.getReissueDate() : null)
+                .createdTimeOffset(UserDateTimeUtil.currentOffset())
                 .build();
 
         TicketActionRequest saved = ticketActionRequestRepository.save(entity);
+
+        activityTicketActionAuditSupport.logSubmitted(saved);
 
         // Notify admins about new request
         notifyAdminsAboutTicketAction(saved, "SUBMITTED");
@@ -210,6 +224,8 @@ public class TicketActionRequestService {
         tar.setStatus(TicketActionStatus.USER_CONFIRMED);
         tar.setUserConfirmedAt(UserDateTimeUtil.now());
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
+
+        activityTicketActionAuditSupport.logUserConfirmed(saved);
 
         // Notify admins that user confirmed
         notifyAdminsAboutTicketAction(saved, "USER_CONFIRMED");
@@ -282,6 +298,8 @@ public class TicketActionRequestService {
 
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
 
+        activityTicketActionAuditSupport.logQuoted(saved, adminUserId);
+
         // Notify user that quote is ready (send email if configured later; for now keep in-app only)
         if (saved.getRequester() != null) {
             String email = saved.getRequester().getEmail();
@@ -316,6 +334,8 @@ public class TicketActionRequestService {
 
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
 
+        activityTicketActionAuditSupport.logRejected(saved, adminUserId, false);
+
         // Notify user about rejection
         if (saved.getRequester() != null) {
             String email = saved.getRequester().getEmail();
@@ -346,6 +366,8 @@ public class TicketActionRequestService {
         tar.setStatus(TicketActionStatus.ADMIN_PROCESSING);
         tar.setFinalizedByAdminId(adminUserId);
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
+
+        activityTicketActionAuditSupport.logProcessingStarted(saved, adminUserId);
 
         // Notify user that processing started
         if (saved.getRequester() != null) {
@@ -385,53 +407,19 @@ public class TicketActionRequestService {
 
         TicketActionRequest saved;
         if (tar.getStatus() == TicketActionStatus.COMPLETED) {
-            Booking b = tar.getBooking();
-            if (tar.getQuoteTotalAmount() == null) {
-                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
-                        "Cannot complete ticket action without a quoted total amount");
+            if (tar.getType() == TicketActionType.REISSUE) {
+                saved = finalizeReissue(tar, request);
+            } else {
+                saved = finalizeRefundLike(tar, request);
             }
-            BigDecimal supplierRefundCost = request.getSupplierRefundCost();
-            if (supplierRefundCost == null) {
-                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
-                        "supplierRefundCost is required when completing a ticket action");
-            }
-
-            BigDecimal buyPrice = bookingService.resolveBookingBuyPrice(b);
-            if (supplierRefundCost.compareTo(buyPrice) > 0) {
-                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
-                        "supplierRefundCost (" + supplierRefundCost + ") cannot exceed buy price (" + buyPrice + ")");
-            }
-            BigDecimal profitLoss = bookingService.resolveBookingProfitLoss(b);
-            BigDecimal supplierPayableReversed = buyPrice.subtract(supplierRefundCost);
-            tar.setSupplierRefundCost(supplierRefundCost);
-            tar.setSupplierPayableReversed(supplierPayableReversed);
-            tar.setRemainingSupplierPayable(supplierRefundCost);
-
-            BigDecimal netProfitLoss = bookingService.computeNetProfitLossAfterRefund(
-                    profitLoss, supplierRefundCost, tar.getQuoteTotalAmount());
-
-            Map<String, Object> refundMetadata = new LinkedHashMap<>();
-            refundMetadata.put("source", "TICKET_ACTION");
-            refundMetadata.put("ticketActionRequestId", tar.getId());
-            refundMetadata.put("ticketActionType", tar.getType().name());
-            refundMetadata.put("supplierRefundCost", supplierRefundCost);
-            refundMetadata.put("buyPrice", buyPrice);
-            refundMetadata.put("profitLoss", profitLoss);
-            refundMetadata.put("netProfitLoss", netProfitLoss);
-            refundMetadata.put("supplierPayableReversed", supplierPayableReversed);
-            refundMetadata.put("remainingSupplierPayable", supplierRefundCost);
-
-            BookingStatus newStatus = mapToBookingStatus(tar.getType());
-            bookingService.updateBookingStatus(
-                    b.getId(),
-                    newStatus,
-                    "Ticket action completed: " + tar.getType(),
-                    tar.getQuoteTotalAmount(),
-                    refundMetadata);
-            tar.setRefunded(true);
+        } else {
+            saved = ticketActionRequestRepository.save(tar);
         }
 
-        saved = ticketActionRequestRepository.save(tar);
+        activityTicketActionAuditSupport.logFinalized(
+                saved,
+                adminUserId,
+                saved.getStatus() == TicketActionStatus.COMPLETED);
 
         // Notify user about final result
         if (saved.getRequester() != null) {
@@ -466,11 +454,109 @@ public class TicketActionRequestService {
 
     }
 
+    private TicketActionRequest finalizeReissue(
+            TicketActionRequest tar,
+            AdminTicketActionFinalizeRequest request) {
+        if (tar.getQuoteTotalAmount() == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Cannot complete reissue without a quoted total amount");
+        }
+        LocalDate reissueDate = request.getReissueDate() != null ? request.getReissueDate() : tar.getReissueDate();
+        if (reissueDate == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "reissueDate is required when completing a reissue");
+        }
+        BigDecimal supplierReissueCost = request.getSupplierRefundCost();
+        if (supplierReissueCost == null) {
+            supplierReissueCost = tar.getQuoteAirlineCost();
+        }
+        if (supplierReissueCost == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "supplierRefundCost is required when completing a reissue");
+        }
+
+        Booking b = tar.getBooking();
+        BigDecimal chargeAmount = tar.getQuoteTotalAmount();
+        tar.setReissueDate(reissueDate);
+        tar.setSupplierRefundCost(supplierReissueCost);
+        tar.setSupplierPayableReversed(supplierReissueCost);
+        tar.setRemainingSupplierPayable(null);
+        tar.setRefunded(false);
+
+        String reason = "Ticket action reissue completed"
+                + (request.getFinalResult() != null && !request.getFinalResult().isBlank()
+                ? ": " + request.getFinalResult() : "");
+
+        bookingService.completeTicketActionReissue(
+                b,
+                chargeAmount,
+                supplierReissueCost,
+                reissueDate,
+                tar.getId(),
+                reason,
+                request.getSegments(),
+                tar.getFinalizedByAdminId());
+
+        return ticketActionRequestRepository.save(tar);
+    }
+
+    private TicketActionRequest finalizeRefundLike(
+            TicketActionRequest tar,
+            AdminTicketActionFinalizeRequest request) {
+        Booking b = tar.getBooking();
+        if (tar.getQuoteTotalAmount() == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Cannot complete ticket action without a quoted total amount");
+        }
+        BigDecimal supplierRefundCost = request.getSupplierRefundCost();
+        if (supplierRefundCost == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "supplierRefundCost is required when completing a ticket action");
+        }
+
+        BigDecimal buyPrice = bookingService.resolveBookingBuyPrice(b);
+        if (supplierRefundCost.compareTo(buyPrice) > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "supplierRefundCost (" + supplierRefundCost + ") cannot exceed buy price (" + buyPrice + ")");
+        }
+        BigDecimal profitLoss = bookingService.resolveBookingProfitLoss(b);
+        BigDecimal supplierPayableReversed = buyPrice.subtract(supplierRefundCost);
+        tar.setSupplierRefundCost(supplierRefundCost);
+        tar.setSupplierPayableReversed(supplierPayableReversed);
+        tar.setRemainingSupplierPayable(supplierRefundCost);
+
+        BigDecimal netProfitLoss = bookingService.computeNetProfitLossAfterRefund(
+                profitLoss, supplierRefundCost, tar.getQuoteTotalAmount());
+
+        Map<String, Object> refundMetadata = new LinkedHashMap<>();
+        refundMetadata.put("source", "TICKET_ACTION");
+        refundMetadata.put("ticketActionRequestId", tar.getId());
+        refundMetadata.put("ticketActionType", tar.getType().name());
+        refundMetadata.put("supplierRefundCost", supplierRefundCost);
+        refundMetadata.put("buyPrice", buyPrice);
+        refundMetadata.put("profitLoss", profitLoss);
+        refundMetadata.put("netProfitLoss", netProfitLoss);
+        refundMetadata.put("supplierPayableReversed", supplierPayableReversed);
+        refundMetadata.put("remainingSupplierPayable", supplierRefundCost);
+
+        BookingStatus newStatus = mapToBookingStatus(tar.getType());
+        bookingService.updateBookingStatus(
+                b.getId(),
+                newStatus,
+                "Ticket action completed: " + tar.getType(),
+                tar.getQuoteTotalAmount(),
+                refundMetadata);
+        tar.setRefunded(true);
+        return ticketActionRequestRepository.save(tar);
+    }
+
 
     private BookingStatus mapToBookingStatus(TicketActionType type) {
         return switch (type) {
+            case CANCEL -> BookingStatus.TICKET_CANCELLED;
             case VOID -> BookingStatus.VOID;
-            case CANCEL, REFUND -> BookingStatus.TICKET_CANCELLED;
+            case REFUND -> BookingStatus.REFUND;
+            case REISSUE -> BookingStatus.REISSUE;
         };
     }
 
@@ -487,6 +573,7 @@ public class TicketActionRequestService {
                                 "Auto-rejected: user did not confirm within deadline"
                 );
                 ticketActionRequestRepository.save(tar);
+                activityTicketActionAuditSupport.logRejected(tar, null, true);
             }
         }
     }
@@ -551,7 +638,15 @@ public class TicketActionRequestService {
         BigDecimal profitLoss = bookingService.resolveBookingProfitLoss(booking);
         BigDecimal buyPrice = bookingService.resolveBookingBuyPrice(booking);
         BigDecimal netProfitLoss = null;
-        if (tar.getSupplierRefundCost() != null && tar.getQuoteTotalAmount() != null) {
+        if (tar.getType() == TicketActionType.REISSUE) {
+            if (tar.getQuoteTotalAmount() != null) {
+                BigDecimal supplierCost = tar.getSupplierRefundCost() != null
+                        ? tar.getSupplierRefundCost()
+                        : tar.getQuoteAirlineCost();
+                netProfitLoss = bookingService.computeNetProfitLossAfterReissue(
+                        profitLoss, supplierCost, tar.getQuoteTotalAmount());
+            }
+        } else if (tar.getSupplierRefundCost() != null && tar.getQuoteTotalAmount() != null) {
             netProfitLoss = bookingService.computeNetProfitLossAfterRefund(
                     profitLoss, tar.getSupplierRefundCost(), tar.getQuoteTotalAmount());
         } else if (tar.getSupplierRefundCost() != null) {
@@ -593,6 +688,11 @@ public class TicketActionRequestService {
                 .supplierRefundCost(tar.getSupplierRefundCost())
                 .supplierPayableReversed(tar.getSupplierPayableReversed())
                 .remainingSupplierPayable(tar.getRemainingSupplierPayable())
+                .reissueDate(tar.getReissueDate())
+                .reissueChargeAmount(
+                        tar.getType() == TicketActionType.REISSUE && tar.getStatus() == TicketActionStatus.COMPLETED
+                                ? tar.getQuoteTotalAmount()
+                                : null)
                 .build();
     }
 }

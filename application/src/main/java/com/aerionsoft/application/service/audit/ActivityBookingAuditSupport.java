@@ -13,9 +13,13 @@ import java.util.Map;
 public class ActivityBookingAuditSupport {
 
     private final ActivityLogService activityLogService;
+    private final ActivityAgencyContextSupport agencyContextSupport;
 
-    public ActivityBookingAuditSupport(ActivityLogService activityLogService) {
+    public ActivityBookingAuditSupport(
+            ActivityLogService activityLogService,
+            ActivityAgencyContextSupport agencyContextSupport) {
         this.activityLogService = activityLogService;
+        this.agencyContextSupport = agencyContextSupport;
     }
 
     public void logBookingCreated(
@@ -31,6 +35,7 @@ public class ActivityBookingAuditSupport {
         metadata.put("sourceType", sourceType);
         metadata.put("ownerUserId", ownerUserId);
         metadata.put("provider", provider);
+        agencyContextSupport.enrichMetadataFromUserId(metadata, ownerUserId);
 
         activityLogService.log(ActivityLogService.ActivityLogEntry.builder()
                 .eventType(ActivityEventType.BOOKING_CREATED)
@@ -64,6 +69,7 @@ public class ActivityBookingAuditSupport {
         if (extraMetadata != null) {
             metadata.putAll(extraMetadata);
         }
+        agencyContextSupport.enrichMetadataFromUserId(metadata, longMetadata(metadata, "ownerUserId"));
 
         activityLogService.log(ActivityLogService.ActivityLogEntry.builder()
                 .eventType(eventType)
@@ -176,11 +182,35 @@ public class ActivityBookingAuditSupport {
         if (newStatus == BookingStatus.REFUND) {
             return ActivityEventType.BOOKING_REFUNDED;
         }
+        if (newStatus == BookingStatus.REISSUE) {
+            return ActivityEventType.BOOKING_REISSUED;
+        }
+        if (newStatus == BookingStatus.VOID) {
+            return ActivityEventType.BOOKING_VOIDED;
+        }
         if ((newStatus == BookingStatus.TICKET_ISSUED || newStatus == BookingStatus.TICKETED)
                 && oldStatus != BookingStatus.TICKET_ISSUED
                 && oldStatus != BookingStatus.TICKETED) {
             return ActivityEventType.TICKET_ISSUED;
         }
         return ActivityEventType.BOOKING_STATUS_CHANGED;
+    }
+
+    private Long longMetadata(Map<String, Object> metadata, String key) {
+        if (metadata == null) {
+            return null;
+        }
+        Object value = metadata.get(key);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

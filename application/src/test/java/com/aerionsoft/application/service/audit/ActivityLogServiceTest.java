@@ -6,6 +6,7 @@ import com.aerionsoft.application.enums.audit.ActivityOutcome;
 import com.aerionsoft.application.enums.audit.ActorType;
 import com.aerionsoft.application.repository.audit.ActivityLogRepository;
 import com.aerionsoft.application.util.ActorContext;
+import com.aerionsoft.application.websocket.ActivityFeedBroadcaster;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,12 +31,16 @@ class ActivityLogServiceTest {
     @Mock
     private ActivityLogRepository activityLogRepository;
 
+    @Mock
+    private ActivityFeedBroadcaster activityFeedBroadcaster;
+
     private ActivityLogService activityLogService;
 
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
-        activityLogService = new ActivityLogService(activityLogRepository, directExecutor);
+        activityLogService = new ActivityLogService(
+                activityLogRepository, directExecutor, activityFeedBroadcaster);
         ReflectionTestUtils.setField(activityLogService, "enabled", true);
         when(activityLogRepository.save(any(ActivityLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }

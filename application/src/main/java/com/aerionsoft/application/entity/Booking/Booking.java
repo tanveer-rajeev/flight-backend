@@ -58,11 +58,17 @@ public class Booking implements HasCreatedUserTimestamp, HasUpdatedUserTimestamp
 
     private LocalDateTime updatedAt;
 
+    @Column(name = "ticketing_time")
+    private LocalDateTime ticketingTime;
+
     @Column(name = "created_time_offset", length = 32)
     private String createdTimeOffset;
 
     @Column(name = "updated_time_offset", length = 32)
     private String updatedTimeOffset;
+
+    @Column(name = "ticketing_time_offset", length = 32)
+    private String ticketingTimeOffset;
 
     private String bookingPrice;
 

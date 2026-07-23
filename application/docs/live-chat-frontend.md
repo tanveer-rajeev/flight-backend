@@ -162,11 +162,12 @@ Apply events:
 
 1. Nav item **Live chat** if permission `manage-live-chat` present.
 2. Inbox tabs: Open | Active | Closed → `GET /api/admin/chat/inbox?status=…`.
-3. Row: user name/email, business id, last preview, wait time, status.
-4. Subscribe inbox topic; prepend/update rows live; badge = open count.
-5. Open thread: **Claim** when `OPEN`; composer enabled on `ACTIVE`.
-6. Optional **Release**; **Close** with confirm.
-7. Same typing/read/optimistic-send rules as client.
+3. Row: user name/email, **agency name**, assigned admin, last preview, **wait time** (`stats.waitTimeSeconds`), **duration** (`stats.durationSeconds`), message counts, status.
+4. Thread header/detail sidebar: show **who chatted with whom**, `stats.activeDurationSeconds`, `stats.closedByName` on closed threads.
+5. Subscribe inbox topic; prepend/update rows live; badge = open count.
+6. Open thread: **Claim** when `OPEN`; composer enabled on `ACTIVE`.
+7. Optional **Release**; **Close** with confirm.
+8. Same typing/read/optimistic-send rules as client.
 
 ## REST helpers (sketch)
 

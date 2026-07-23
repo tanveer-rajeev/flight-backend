@@ -11,6 +11,7 @@ import com.aerionsoft.application.dto.business.BusinessSimpleDto;
 import com.aerionsoft.application.dto.client.user.UserDto;
 import com.aerionsoft.application.dto.common.TravellerShortDto;
 import com.aerionsoft.application.dto.flight.StatusChangeRequest;
+import com.aerionsoft.application.dto.ticketaction.ReissueSegmentDateUpdate;
 import com.aerionsoft.application.dto.traveller.TravellerResponse;
 import com.aerionsoft.application.entity.Booking.Booking;
 import com.aerionsoft.application.entity.Booking.BookingPackageBaggage;
@@ -28,6 +29,8 @@ import com.aerionsoft.application.enums.booking.Provider;
 import com.aerionsoft.application.enums.common.Currency;
 import com.aerionsoft.application.enums.common.ErrorCode;
 import com.aerionsoft.application.enums.group.GroupTicketType;
+import com.aerionsoft.application.enums.notification.NotificationPriority;
+import com.aerionsoft.application.enums.notification.NotificationType;
 import com.aerionsoft.application.enums.wallet.DepositStatus;
 import com.aerionsoft.application.enums.wallet.DepositType;
 import com.aerionsoft.application.enums.wallet.TransactionSourceType;
@@ -239,6 +242,7 @@ public class BookingService implements BookingInterface {
                 .groupTicketType(resolveGroupTicketType(req))
                 .build();
 
+        stampTicketingTimeIfConfirmed(booking, bookConformation.getStatus());
 
         try {
             bookingRepo.save(booking);
@@ -638,6 +642,9 @@ public class BookingService implements BookingInterface {
                 .updatedAt(timestampMapper.toRequestUserTime(
                         b.getUpdatedAt(),
                         b.getUpdatedTimeOffset() != null ? b.getUpdatedTimeOffset() : b.getTimeOffset()))
+                .ticketingTime(timestampMapper.toRequestUserTime(
+                        b.getTicketingTime(),
+                        b.getTicketingTimeOffset() != null ? b.getTicketingTimeOffset() : b.getTimeOffset()))
                 .travellerIds(travellerIds)
                 .travellers(travellers)
                 .business(businessSimpleDto)
@@ -1009,6 +1016,9 @@ public class BookingService implements BookingInterface {
                 .updatedAt(timestampMapper.toRequestUserTime(
                         booking.getUpdatedAt(),
                         booking.getUpdatedTimeOffset() != null ? booking.getUpdatedTimeOffset() : booking.getTimeOffset()))
+                .ticketingTime(timestampMapper.toRequestUserTime(
+                        booking.getTicketingTime(),
+                        booking.getTicketingTimeOffset() != null ? booking.getTicketingTimeOffset() : booking.getTimeOffset()))
                 .markupAmount(booking.getMarkupAmount())
                 .exchangeCurrencyRate(booking.getExchangeCurrencyRate())
                 .exchangeCurrency(booking.getExchangeCurrency())
@@ -1196,6 +1206,7 @@ public class BookingService implements BookingInterface {
         Booking booking = bookingRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Booking"));
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         if (reason != null && !reason.isBlank()) {
             booking.setReason(reason);
         }
@@ -1211,6 +1222,7 @@ public class BookingService implements BookingInterface {
         Booking booking = bookingRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Booking"));
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status.getBookingStatus());
+        stampTicketingTimeIfConfirmed(booking, status.getBookingStatus());
         booking.setReason(status.getReason());
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
@@ -1234,6 +1246,7 @@ public class BookingService implements BookingInterface {
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         booking.setReason(reason);
         if (airlinePnrs != null && !airlinePnrs.isEmpty()) {
             booking.setAirlinePnrs(airlinePnrs);
@@ -1248,6 +1261,7 @@ public class BookingService implements BookingInterface {
         Booking booking = bookingRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Booking"));
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
         bookingRepo.save(booking);
@@ -1337,6 +1351,7 @@ public class BookingService implements BookingInterface {
 
         // Update booking status and ticket
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         booking.setReason(reason);
         if (ticketNo != null && !ticketNo.isEmpty()) {
             booking.setTicketNo(ticketNo);
@@ -1407,6 +1422,14 @@ public class BookingService implements BookingInterface {
                 newStatus,
                 reason,
                 extraMetadata);
+    }
+
+    public void stampTicketingTimeIfConfirmed(Booking booking, BookingStatus newStatus) {
+        if (newStatus != BookingStatus.CONFIRMED || booking.getTicketingTime() != null) {
+            return;
+        }
+        booking.setTicketingTime(UserDateTimeUtil.now());
+        booking.setTicketingTimeOffset(UserDateTimeUtil.currentOffset());
     }
 
 
@@ -1516,7 +1539,7 @@ public class BookingService implements BookingInterface {
 
 
         // Update booking status and ticket
-        booking.setStatus(BookingStatus.REFUND);
+        booking.setStatus(status);
         booking.setReason(reason);
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
@@ -1685,6 +1708,14 @@ public class BookingService implements BookingInterface {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR,
                     "Booking status is REFUND – cannot edit");
         }
+        if (booking.getStatus() == BookingStatus.REISSUE) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Booking status is REISSUE – cannot edit");
+        }
+        if (booking.getStatus() == BookingStatus.VOID) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Booking status is VOID – cannot edit");
+        }
         if (booking.getStatus() == BookingStatus.CANCELLED
                 || booking.getStatus() == BookingStatus.TICKET_CANCELLED) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR,
@@ -1837,7 +1868,7 @@ public class BookingService implements BookingInterface {
             if (sellDeltaUsd.compareTo(BigDecimal.ZERO) > 0) {
                 double charge = sellDeltaUsd.multiply(BigDecimal.valueOf(currentOwnerRate)).doubleValue();
                 applyBookingWalletDebit(booking, currentOwner, charge, sellDeltaUsd.doubleValue(),
-                        "Admin sell price increase for booking " + bookingId);
+                        "Admin sell price increase for booking " + bookingId,true);
                 walletDeltaCharged = BigDecimal.valueOf(charge).setScale(2, java.math.RoundingMode.HALF_UP);
             } else if (sellDeltaUsd.compareTo(BigDecimal.ZERO) < 0) {
                 double credit = sellDeltaUsd.abs().multiply(BigDecimal.valueOf(currentOwnerRate)).doubleValue();
@@ -1869,7 +1900,7 @@ public class BookingService implements BookingInterface {
             }
             if (chargeNewAgency > 0) {
                 applyBookingWalletDebit(booking, transferTarget, chargeNewAgency, newSellUsd.doubleValue(),
-                        "Admin transfer charge (new agency) for booking " + bookingId);
+                        "Admin transfer charge (new agency) for booking " + bookingId,true);
                 walletDeltaCharged = BigDecimal.valueOf(chargeNewAgency)
                         .setScale(2, java.math.RoundingMode.HALF_UP);
             }
@@ -1988,24 +2019,39 @@ public class BookingService implements BookingInterface {
     }
 
     private void applyBookingWalletDebit(
-            Booking booking, User owner, double convertedAmount, double usdAmount, String description) {
+            Booking booking, User owner, double convertedAmount, double usdAmount, String description,
+            boolean canOverrideBalance) {
+        applyBookingWalletDebit(booking, owner, convertedAmount, usdAmount, description, canOverrideBalance, null);
+    }
+
+    private void applyBookingWalletDebit(Booking booking, User owner, double convertedAmount, double usdAmount, String description,
+                                         boolean canOverrideBalance, String remarks) {
+        applyBookingWalletDebit(booking, owner, convertedAmount, usdAmount, description, canOverrideBalance, remarks,
+                DepositType.PURCHASE);
+    }
+
+    private void applyBookingWalletDebit(Booking booking, User owner, double convertedAmount, double usdAmount, String description,
+                                         boolean canOverrideBalance, String remarks, DepositType depositType) {
         Long actingUserId = booking.getActingUserId() != null ? booking.getActingUserId() : owner.getId();
         Long walletUserId = CreditLimitValidatorService.resolveWalletUserId(owner);
         String provider = booking.getProviderName() != null ? booking.getProviderName().name() : "OTHERS";
 
-        userService.deductUserBalance(owner.getId(), convertedAmount, provider, true,
+        userService.deductUserBalance(owner.getId(), convertedAmount, provider, canOverrideBalance,
                 "BookingService", booking.getId(), "BOOKING", actingUserId);
 
         String depositReference = referenceGeneratorService.nextReference("FR");
         double exchangeRate = parseExchangeRate(booking);
+        String depositRemarks = remarks != null && !remarks.isBlank()
+                ? remarks
+                : "admin_edit_" + booking.getPnr();
         WalletDeposit deposit = WalletDeposit.builder()
                 .userId(walletUserId)
                 .actingUserId(actingUserId)
-                .type(DepositType.PURCHASE)
+                .type(depositType)
                 .status(DepositStatus.APPROVED)
                 .amount(usdAmount)
                 .exchangeRate(exchangeRate)
-                .remarks("admin_edit_" + booking.getPnr())
+                .remarks(depositRemarks)
                 .reference(depositReference)
                 .transactionId(UUID.randomUUID().toString())
                 .createdAt(UserDateTimeUtil.now())
@@ -2015,7 +2061,7 @@ public class BookingService implements BookingInterface {
         walletDepositRepository.save(deposit);
 
         Transaction transaction = Transaction.builder()
-                .type(DepositType.PURCHASE.name())
+                .type(depositType.name())
                 .amount(convertedAmount)
                 .currency(owner.getCurrency() != null ? owner.getCurrency() : "USD")
                 .exchangeRate(exchangeRate)
@@ -2027,6 +2073,71 @@ public class BookingService implements BookingInterface {
                 .reference(depositReference)
                 .sourceType(TransactionSourceType.BOOKING.name())
                 .sourceId(booking.getId())
+                .build();
+        transactionRepository.save(transaction);
+    }
+
+    /**
+     * Debits only the quoted reissue charge as ADMIN_CHARGE (not a second PURCHASE for the full ticket).
+     */
+    private void applyReissueAdminCharge(
+            Booking booking,
+            User owner,
+            BigDecimal quoteTotalAmountUsd,
+            java.time.LocalDate reissueDate,
+            Long ticketActionRequestId,
+            Long adminUserId) {
+        double exchangeRate = parseExchangeRate(booking);
+        double chargeUsd = quoteTotalAmountUsd.doubleValue();
+        double chargeConverted = quoteTotalAmountUsd
+                .multiply(BigDecimal.valueOf(exchangeRate))
+                .setScale(2, java.math.RoundingMode.HALF_UP)
+                .doubleValue();
+
+        Long actingUserId = booking.getActingUserId() != null ? booking.getActingUserId() : owner.getId();
+        Long walletUserId = CreditLimitValidatorService.resolveWalletUserId(owner);
+        String provider = booking.getProviderName() != null ? booking.getProviderName().name() : "OTHERS";
+        String description = "Ticket reissue charge (quoted amount " + quoteTotalAmountUsd.toPlainString()
+                + " USD) for booking " + booking.getId() + " PNR " + booking.getPnr()
+                + " (reissue date " + (reissueDate != null ? reissueDate : "—") + ")";
+        String remarks = "ticket_action_reissue_" + booking.getPnr() + "_req_" + ticketActionRequestId;
+
+        userService.deductUserBalance(owner.getId(), chargeConverted, provider, true,
+                "BookingService", booking.getId(), "BOOKING", actingUserId);
+
+        String depositReference = referenceGeneratorService.nextReference("ac");
+        WalletDeposit deposit = WalletDeposit.builder()
+                .userId(walletUserId)
+                .actingUserId(adminUserId != null ? adminUserId : actingUserId)
+                .type(DepositType.ADMIN_CHARGE)
+                .status(DepositStatus.APPROVED)
+                .amount(chargeUsd)
+                .exchangeRate(exchangeRate)
+                .remarks(remarks)
+                .reference(depositReference)
+                .transactionId(depositReference)
+                .createdAt(UserDateTimeUtil.now())
+                .exchangedAmount(chargeConverted)
+                .currency(owner.getCurrency() != null ? Currency.valueOf(owner.getCurrency()) : Currency.USD)
+                .approvedAt(UserDateTimeUtil.now())
+                .approvedBy(adminUserId)
+                .build();
+        walletDepositRepository.save(deposit);
+
+        Transaction transaction = Transaction.builder()
+                .type(DepositType.ADMIN_CHARGE.name())
+                .amount(chargeConverted)
+                .currency(owner.getCurrency() != null ? owner.getCurrency() : "USD")
+                .exchangeRate(exchangeRate)
+                .convertedAmount(String.valueOf(chargeConverted))
+                .description(description)
+                .userId(walletUserId)
+                .createdBy(adminUserId != null ? "ADMIN:" + adminUserId : "ADMIN")
+                .createdAt(UserDateTimeUtil.now())
+                .reference(depositReference)
+                .sourceType(TransactionSourceType.BOOKING.name())
+                .sourceId(booking.getId())
+                .active(true)
                 .build();
         transactionRepository.save(transaction);
     }
@@ -2130,6 +2241,204 @@ public class BookingService implements BookingInterface {
         BigDecimal retention = customerRetention != null ? customerRetention : BigDecimal.ZERO;
         return profitLoss.subtract(supplierCost).add(retention);
     }
+    /**
+     * Net margin after reissue: original profitLoss plus reissue agency margin (charge - supplier cost).
+     */
+    public BigDecimal computeNetProfitLossAfterReissue(
+            BigDecimal profitLoss,
+            BigDecimal supplierReissueCost,
+            BigDecimal reissueChargeAmount) {
+        BigDecimal supplierCost = supplierReissueCost != null ? supplierReissueCost : BigDecimal.ZERO;
+        BigDecimal charge = reissueChargeAmount != null ? reissueChargeAmount : BigDecimal.ZERO;
+        return profitLoss.add(charge.subtract(supplierCost));
+    }
+
+    /**
+     * Updates segment departure/arrival times on an existing booking (used on REISSUE finalize).
+     * Matches segments by {@code segmentOrder} and refreshes travel_information summary dates.
+     */
+    public void updateBookingSegmentDates(Booking booking, List<ReissueSegmentDateUpdate> segmentUpdates) {
+        if (segmentUpdates == null || segmentUpdates.isEmpty()) {
+            return;
+        }
+
+        com.aerionsoft.application.entity.group.TravelInformation travelInfo =
+                travelInformationRepository.findByBookingId(booking.getId());
+        if (travelInfo == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Booking has no travel information — cannot update segment dates");
+        }
+
+        List<BookingSegment> existingSegments =
+                bookingSegmentRepository.findByTravelInformationIdOrderBySegmentOrderAsc(travelInfo.getId());
+        if (existingSegments == null || existingSegments.isEmpty()) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Booking has no segments — cannot update segment dates");
+        }
+
+        Map<Integer, BookingSegment> segmentsByOrder = existingSegments.stream()
+                .filter(s -> s.getSegmentOrder() != null)
+                .collect(Collectors.toMap(BookingSegment::getSegmentOrder, s -> s, (a, b) -> a));
+
+        for (ReissueSegmentDateUpdate update : segmentUpdates) {
+            if (update.getSegmentOrder() == null) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "segmentOrder is required for each segment date update");
+            }
+            boolean hasDepTime = update.getDepTime() != null && !update.getDepTime().isBlank();
+            boolean hasArrTime = update.getArrTime() != null && !update.getArrTime().isBlank();
+            if (!hasDepTime && !hasArrTime) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "Each segment update must include depTime and/or arrTime (segmentOrder="
+                                + update.getSegmentOrder() + ")");
+            }
+
+            BookingSegment segment = segmentsByOrder.get(update.getSegmentOrder());
+            if (segment == null) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "No segment with segmentOrder " + update.getSegmentOrder() + " on this booking");
+            }
+
+            if (hasDepTime) {
+                SegmentAirport origin = segmentAirportRepository
+                        .findFirstBySegmentIdAndAirportTypeOrderByIdAsc(segment.getId(), "ORIGIN")
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_ERROR,
+                                "Segment " + update.getSegmentOrder() + " has no origin airport record"));
+                origin.setTime(update.getDepTime().trim());
+                segmentAirportRepository.save(origin);
+            }
+
+            if (hasArrTime) {
+                SegmentAirport destination = segmentAirportRepository
+                        .findFirstBySegmentIdAndAirportTypeOrderByIdAsc(segment.getId(), "DESTINATION")
+                        .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_ERROR,
+                                "Segment " + update.getSegmentOrder() + " has no destination airport record"));
+                destination.setTime(update.getArrTime().trim());
+                segmentAirportRepository.save(destination);
+            }
+        }
+
+        refreshTravelInformationDatesFromSegments(travelInfo, existingSegments);
+        travelInformationRepository.save(travelInfo);
+    }
+
+    private void refreshTravelInformationDatesFromSegments(
+            com.aerionsoft.application.entity.group.TravelInformation travelInfo,
+            List<BookingSegment> segments) {
+        BookingSegment firstSegment = segments.get(0);
+        BookingSegment lastSegment = segments.get(segments.size() - 1);
+
+        segmentAirportRepository.findFirstBySegmentIdAndAirportTypeOrderByIdAsc(firstSegment.getId(), "ORIGIN")
+                .ifPresent(origin -> {
+                    travelInfo.setDepartureTime(origin.getTime());
+                    travelInfo.setDepartureDate(extractIsoDatePart(origin.getTime()));
+                });
+
+        segmentAirportRepository.findFirstBySegmentIdAndAirportTypeOrderByIdAsc(lastSegment.getId(), "DESTINATION")
+                .ifPresent(destination -> {
+                    travelInfo.setArrivalTime(destination.getTime());
+                    travelInfo.setArrivalDate(extractIsoDatePart(destination.getTime()));
+                });
+    }
+
+    private String extractIsoDatePart(String dateTime) {
+        if (dateTime == null || dateTime.isBlank()) {
+            return null;
+        }
+        if (dateTime.contains("T")) {
+            return dateTime.split("T")[0];
+        }
+        return dateTime.length() >= 10 ? dateTime.substring(0, 10) : dateTime;
+    }
+
+    /**
+     * Complete a REISSUE ticket action: charge agency wallet, add supplier payable, set booking to REISSUE.
+     * Runs in one DB transaction — supplier failure rolls back wallet debit and status change.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void completeTicketActionReissue(
+            Booking booking,
+            BigDecimal chargeAmountUsd,
+            BigDecimal supplierReissueCostUsd,
+            java.time.LocalDate reissueDate,
+            Long ticketActionRequestId,
+            String reason,
+            List<ReissueSegmentDateUpdate> segmentUpdates,
+            Long adminUserId) {
+        if (chargeAmountUsd == null || chargeAmountUsd.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "Reissue charge amount must be greater than zero");
+        }
+        if (supplierReissueCostUsd == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "supplierRefundCost is required when completing a reissue");
+        }
+        if (supplierReissueCostUsd.compareTo(chargeAmountUsd) > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "supplierRefundCost (" + supplierReissueCostUsd + ") cannot exceed reissue charge ("
+                            + chargeAmountUsd + ")");
+        }
+
+        User owner = booking.getCreatedBy();
+        if (owner == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR, "Booking has no owning agency");
+        }
+
+        double exchangeRate = parseExchangeRate(booking);
+        double chargeConverted = chargeAmountUsd
+                .multiply(BigDecimal.valueOf(exchangeRate))
+                .setScale(2, java.math.RoundingMode.HALF_UP)
+                .doubleValue();
+
+        applyReissueAdminCharge(
+                booking,
+                owner,
+                chargeAmountUsd,
+                reissueDate,
+                ticketActionRequestId,
+                adminUserId);
+
+        bookingSupplierInvoiceService.recordReissueCharge(
+                booking, supplierReissueCostUsd, reissueDate, ticketActionRequestId);
+
+        if (segmentUpdates != null && !segmentUpdates.isEmpty()) {
+            updateBookingSegmentDates(booking, segmentUpdates);
+        }
+
+        BookingStatus oldStatus = booking.getStatus();
+        booking.setStatus(BookingStatus.REISSUE);
+        booking.setReason(reason);
+        booking.setUpdatedAt(UserDateTimeUtil.now());
+        booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
+        bookingRepo.save(booking);
+
+        bookingTimelineService.recordSystem(
+                booking.getId(), BookingStatus.REISSUE, oldStatus, booking.getPnr(), booking.getTicketNo(), reason);
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("source", "TICKET_ACTION");
+        metadata.put("ticketActionRequestId", ticketActionRequestId);
+        metadata.put("ticketActionType", "REISSUE");
+        metadata.put("reissueDate", reissueDate != null ? reissueDate.toString() : null);
+        metadata.put("reissueChargeAmountUsd", chargeAmountUsd);
+        metadata.put("supplierReissueCost", supplierReissueCostUsd);
+        metadata.put("walletChargeType", "ADMIN_CHARGE");
+        metadata.put("walletChargeAmountUsd", chargeAmountUsd);
+        metadata.put("walletChargeAmountConverted", chargeConverted);
+        metadata.put("balanceCheckBypassed", true);
+        if (segmentUpdates != null && !segmentUpdates.isEmpty()) {
+            metadata.put("segmentsUpdated", true);
+            metadata.put("segmentDateUpdates", segmentUpdates);
+        }
+        auditBookingStatusChange(booking, oldStatus, BookingStatus.REISSUE, reason, metadata);
+
+        try {
+            notifyUserOnStatusChange(booking, BookingStatus.REISSUE);
+        } catch (Exception e) {
+            log.warning("Could not notify user about reissued booking "
+                    + booking.getId() + ": " + e.getMessage());
+        }
+    }
 
     private BigDecimal toBigDecimal(Object value) {
         if (value == null) {
@@ -2232,6 +2541,16 @@ public class BookingService implements BookingInterface {
                         "/bookings/" + booking.getId(),
                         "View Booking"
                 );
+            } else if (status == BookingStatus.REISSUE) {
+                notificationHelper.sendCustomNotification(
+                        userId,
+                        NotificationType.GENERAL,
+                        NotificationPriority.HIGH,
+                        "Ticket Reissued",
+                        "Your booking " + booking.getBookingReference() + " has been reissued.",
+                        "/bookings/" + booking.getId(),
+                        "View Booking"
+                );
             }
         } catch (Exception e) {
             // ignore
@@ -2262,7 +2581,7 @@ public class BookingService implements BookingInterface {
                     pnr,
                     errorMessage != null ? errorMessage : "Unknown error"
             );
-            String actionUrl = "/bookings/" + booking.getId() ;
+            String actionUrl = "/bookings/" + booking.getId();
 
             for (AdminUser admin : admins) {
                 if (admin != null && admin.getId() != null) {
@@ -2494,6 +2813,7 @@ public class BookingService implements BookingInterface {
         if (booking.getStatus() == BookingStatus.PNR) {
             BookingStatus oldStatus = booking.getStatus();
             booking.setStatus(newStatus);
+            stampTicketingTimeIfConfirmed(booking, newStatus);
             booking.setReason(reason);
             booking.setUpdatedAt(UserDateTimeUtil.now());
             booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());

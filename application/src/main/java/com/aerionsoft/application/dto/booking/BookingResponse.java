@@ -43,6 +43,7 @@ public class BookingResponse {
     private BookingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime ticketingTime;
     private Long createdBy;
     private String createdByName;
     private String resultIndex;

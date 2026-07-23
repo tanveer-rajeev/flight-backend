@@ -12,6 +12,7 @@ import com.aerionsoft.application.entity.paymentGateway.Payment;
 import com.aerionsoft.application.enums.booking.BookingStatus;
 import com.aerionsoft.application.repository.payment.PaymentRepository;
 import com.aerionsoft.application.repository.booking.BookingRepository;
+import com.aerionsoft.application.service.booking.BookingService;
 import com.aerionsoft.application.service.booking.BookingTimelineService;
 import com.aerionsoft.application.service.notification.NotificationHelper;
 import com.stripe.exception.StripeException;
@@ -40,6 +41,9 @@ public class StripePaymentService {
 
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private BookingService bookingService;
 
     @Autowired
     private NotificationHelper notificationHelper;
@@ -181,6 +185,7 @@ public class StripePaymentService {
             Booking booking = bookingOpt.get();
             BookingStatus oldStatus = booking.getStatus();
             booking.setStatus(BookingStatus.CONFIRMED);
+            bookingService.stampTicketingTimeIfConfirmed(booking, BookingStatus.CONFIRMED);
             booking.setUpdatedAt(UserDateTimeUtil.now());
             bookingRepository.save(booking);
             log.info("Updated booking {} status to CONFIRMED after successful payment", bookingId);

@@ -296,7 +296,7 @@ public class MarkupService {
                         rule.getId(), calc.markupAmount, calc.ait, calc.commission);
 
                 fare.setPublishedFare(newPublishedFare);
-//                fare.setRemarks(bindinfo);
+                fare.setRemarks(bindinfo);
                 fare.setAit(calc.ait);
                 fare.setDiscount(fare.getDiscount() + calc.commission);
                 if (calc.commission == 0.0) {

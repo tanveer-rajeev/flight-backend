@@ -6,6 +6,7 @@ public enum ActivityEventCategory {
     USER,
     WALLET,
     BOOKING,
+    TICKET_ACTION,
     FLIGHT,
     ADMIN,
     SYSTEM

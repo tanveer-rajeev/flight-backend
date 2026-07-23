@@ -2,3 +2,6 @@
 /notification/target/
 /application/application.properties/
 /application/target/
+logs/
+
+*.log

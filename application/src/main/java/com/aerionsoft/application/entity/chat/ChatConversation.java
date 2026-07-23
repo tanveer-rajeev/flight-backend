@@ -41,6 +41,10 @@ public class ChatConversation {
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
 
+    /** When an admin first claimed or started the conversation. */
+    @Column(name = "claimed_at")
+    private LocalDateTime claimedAt;
+
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 

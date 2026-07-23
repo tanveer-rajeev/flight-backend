@@ -127,13 +127,44 @@ public class PermissionService {
                 .anyMatch(a -> "ROLE_admin".equalsIgnoreCase(a.getAuthority()));
     }
 
+    /** Matches REST {@code @PreAuthorize} on activity log / feed endpoints. */
+    public boolean canViewActivityLog(Authentication authentication) {
+        return isFullAdmin(authentication)
+                || hasPermission(authentication, "view-activity-log");
+    }
+
+    /** Matches REST access pattern for admin summary / active-users widgets. */
+    public boolean canViewSummery(Authentication authentication) {
+        return isFullAdmin(authentication)
+                || hasPermission(authentication, "view-summery");
+    }
+
+    /**
+     * True when the principal is an admin-panel user ({@code provider=admin}),
+     * regardless of which admin role slug they hold.
+     */
+    public boolean isAdminUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails details)) {
+            return false;
+        }
+        return "admin".equalsIgnoreCase(details.getProvider());
+    }
+
+
+
     // Check if authenticated user has permission
     public boolean hasPermission(Authentication authentication, String permissionSlug) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return false;
         }
 
-        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails principal)) {
+            return false;
+        }
+
         Long userId = principal.getId();
         String provider = principal.getProvider();
 

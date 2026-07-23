@@ -16,10 +16,14 @@ public final class WebSocketTopics {
     /** Admin dashboard: live active-users list (same payload as GET /api/admin/summery/active-users) */
     public static final String TOPIC_ADMIN_ACTIVE_USERS = "/topic/admin/active-users";
 
+    /** Admin dashboard: live ops activity feed (BOOKING, WALLET, ADMIN, TICKET_ACTION) */
+    public static final String TOPIC_ADMIN_ACTIVITY_FEED = "/topic/admin/activity-feed";
+
     /** Admin: request immediate broadcast to all subscribers */
     public static final String APP_ADMIN_ACTIVE_USERS_REFRESH = "/admin/active-users/refresh";
 
     public static final String PERMISSION_VIEW_SUMMERY = "view-summery";
+    public static final String PERMISSION_VIEW_ACTIVITY_LOG = "view-activity-log";
 
     /** Live chat: client → server send message */
     public static final String APP_CHAT_SEND = "/chat/send";

@@ -159,6 +159,9 @@ public class GlobalSearchService {
                 .updatedAt(timestampMapper.toRequestUserTime(
                         booking.getUpdatedAt(),
                         booking.getUpdatedTimeOffset() != null ? booking.getUpdatedTimeOffset() : booking.getTimeOffset()))
+                .ticketingTime(timestampMapper.toRequestUserTime(
+                        booking.getTicketingTime(),
+                        booking.getTicketingTimeOffset() != null ? booking.getTicketingTimeOffset() : booking.getTimeOffset()))
                 .createdBy(booking.getCreatedBy() != null ? booking.getCreatedBy().getId() : null)
                 .createdByName(booking.getCreatedByName())
                 .travellerIds(travellerIds)

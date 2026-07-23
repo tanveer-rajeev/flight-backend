@@ -4,6 +4,7 @@ import com.aerionsoft.application.annotation.AuditedAction;
 import com.aerionsoft.application.annotation.SkipAutoAudit;
 import com.aerionsoft.application.enums.audit.ActivityEventType;
 import com.aerionsoft.application.enums.audit.ActivityOutcome;
+import com.aerionsoft.application.service.audit.ActivityAuditInvocationCapture;
 import com.aerionsoft.application.service.audit.ActivityLogService;
 import com.aerionsoft.application.util.ActorContext;
 import com.aerionsoft.application.util.AuthenticatedRouteMatcher;
@@ -38,9 +39,13 @@ import java.util.Map;
 public class ControllerMutationAuditAspect {
 
     private final ActivityLogService activityLogService;
+    private final ActivityAuditInvocationCapture activityAuditInvocationCapture;
 
-    public ControllerMutationAuditAspect(ActivityLogService activityLogService) {
+    public ControllerMutationAuditAspect(
+            ActivityLogService activityLogService,
+            ActivityAuditInvocationCapture activityAuditInvocationCapture) {
         this.activityLogService = activityLogService;
+        this.activityAuditInvocationCapture = activityAuditInvocationCapture;
     }
 
     @Around("execution(* com.aerionsoft.application.controller..*(..))")
@@ -105,14 +110,7 @@ public class ControllerMutationAuditAspect {
             String failureReason) {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("controller", signature.getDeclaringType().getSimpleName());
-        metadata.put("method", signature.getName());
-        if (httpMethod != null) {
-            metadata.put("httpMethod", httpMethod);
-        }
-        if (path != null) {
-            metadata.put("path", path);
-        }
+        activityAuditInvocationCapture.enrichMutationMetadata(joinPoint, currentRequest(), metadata);
         if (failureReason != null) {
             metadata.put("reason", failureReason);
         }
@@ -121,9 +119,15 @@ public class ControllerMutationAuditAspect {
                 .eventType(ActivityEventType.ADMIN_ACTION)
                 .outcome(outcome)
                 .actor(actor)
-                .description(signature.getDeclaringType().getSimpleName() + "." + signature.getName())
+                .description(String.valueOf(metadata.get("actionLabel")))
+                .resourceType(stringVal(metadata.get("inferredResourceType")))
+                .resourceId(stringVal(metadata.get("inferredResourceId")))
                 .metadata(metadata)
                 .build();
+    }
+
+    private static String stringVal(Object value) {
+        return value != null ? String.valueOf(value) : null;
     }
 
     private static boolean isMutationMethod(Method method) {

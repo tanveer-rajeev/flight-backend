@@ -1,5 +1,6 @@
 package com.aerionsoft.application.service.chat;
 
+import com.aerionsoft.application.dto.chat.ChatConversationStatsDTO;
 import com.aerionsoft.application.dto.chat.AdminStartChatRequest;
 import com.aerionsoft.application.dto.chat.ChatAttachmentDTO;
 import com.aerionsoft.application.dto.chat.ChatConversationDTO;
@@ -28,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +52,7 @@ class ChatServiceTest {
     @Mock private ChatRealtimePublisher realtimePublisher;
     @Mock private ActiveUserPresenceService presenceService;
     @Mock private ChatOfflineNotifyService offlineNotifyService;
+    @Mock private ChatConversationStatsSupport statsSupport;
 
     private ChatService chatService;
 
@@ -67,7 +70,13 @@ class ChatServiceTest {
                 adminUserRepository,
                 realtimePublisher,
                 presenceService,
-                offlineNotifyService);
+                offlineNotifyService,
+                statsSupport);
+
+        lenient().when(statsSupport.loadContext(any())).thenReturn(
+                new ChatConversationStatsSupport.StatsContext(Map.of(), Map.of()));
+        lenient().when(statsSupport.build(any(), anyBoolean(), any())).thenReturn(
+                ChatConversationStatsDTO.builder().build());
 
         user = User.builder()
                 .id(USER_ID)

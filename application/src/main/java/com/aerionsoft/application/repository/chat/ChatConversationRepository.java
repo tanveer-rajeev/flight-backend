@@ -31,6 +31,7 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
             UPDATE ChatConversation c
             SET c.status = :activeStatus,
                 c.assignedAdminId = :adminId,
+                c.claimedAt = CASE WHEN c.claimedAt IS NULL THEN CURRENT_TIMESTAMP ELSE c.claimedAt END,
                 c.updatedAt = CURRENT_TIMESTAMP
             WHERE c.id = :id AND c.status = :openStatus
             """)

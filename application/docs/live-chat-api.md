@@ -50,6 +50,48 @@ Requires admin JWT (`provider=admin`). REST also accepts `ROLE_admin` / `ROLE_su
 | `POST` | `/conversations/{id}/read` | Mark user messages read |
 | `POST` | `/conversations/{id}/close` | Close |
 
+### Conversation session info (`stats`)
+
+Every `ChatConversation` response (inbox, detail, WS `conversation` payload on lifecycle events) includes participant fields plus a `stats` object for admin UI panels:
+
+| Field | Description |
+|-------|-------------|
+| `userFullName`, `userEmail`, `userBusinessName` | Client / agency user |
+| `assignedAdminName`, `assignedAdminEmail` | Admin handling the chat |
+| `stats.claimedAt` | When an admin first joined |
+| `stats.firstAdminReplyAt` | First public admin message |
+| `stats.durationSeconds` | Total thread length (`createdAt` → `closedAt` or now) |
+| `stats.waitTimeSeconds` | User wait before admin join; for `OPEN` threads this increases until claim |
+| `stats.activeDurationSeconds` | Time with an assigned admin (`claimedAt` → close or now) |
+| `stats.totalMessageCount` | Public messages (user + admin) |
+| `stats.userMessageCount` / `stats.adminMessageCount` | Split by sender |
+| `stats.internalNoteCount` | Admin-only (omitted on user REST) |
+| `stats.closedByName` | Who closed the thread |
+
+Example inbox row snippet:
+
+```json
+{
+  "id": 42,
+  "userFullName": "Acme Travel",
+  "userEmail": "agent@acme.com",
+  "userBusinessName": "Acme Travel Ltd",
+  "assignedAdminName": "Ops Admin",
+  "status": "CLOSED",
+  "stats": {
+    "claimedAt": "2026-07-23T10:05:00",
+    "durationSeconds": 1200,
+    "waitTimeSeconds": 300,
+    "activeDurationSeconds": 900,
+    "totalMessageCount": 8,
+    "userMessageCount": 5,
+    "adminMessageCount": 3,
+    "internalNoteCount": 1,
+    "closedByName": "Ops Admin"
+  }
+}
+```
+
 ## WebSocket (STOMP + SockJS)
 
 - Endpoint: `{origin}/ws` or `{origin}/api/ws` (SockJS — both work)

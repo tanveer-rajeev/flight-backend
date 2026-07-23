@@ -11,9 +11,20 @@ import java.util.List;
 @Builder
 public class DashboardStatsResponse {
 
+    /** @deprecated Use {@link #agencies} */
     private Long pnrStatusOnlyCount;
+
+    /** @deprecated Use {@link #deposits} */
     private Long pendingDepositRequestCount;
+
+    /** @deprecated Use {@link #agencies} */
     private Long newBusinessCount;
+
+    private AdminPendingQueueStats agencies;
+    private AdminPendingQueueStats deposits;
+    private BookingStatusPendingStats bookings;
+    private TicketActionPendingStats ticketActions;
+    private AdminPendingSummary summary;
 
 }
 

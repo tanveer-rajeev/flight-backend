@@ -94,6 +94,22 @@ Authenticated controller mutations (POST/PUT/PATCH/DELETE on non-public routes) 
 
 Read-like POST endpoints (`/filter`, `/search`, `/get-reservation`, `/load-booking`, `/heartbeat`) are excluded. Public routes (`/api/auth/**`, `/api/flights/**`, payment callbacks, etc.) are excluded.
 
+### Ticket actions (`TICKET_ACTION`)
+
+| Event | Trigger |
+|-------|---------|
+| `TICKET_ACTION_SUBMITTED` | Agency submit ticket action request |
+| `TICKET_ACTION_QUOTED` | Admin send quote |
+| `TICKET_ACTION_USER_CONFIRMED` | Agency confirm quote |
+| `TICKET_ACTION_REJECTED` | Admin reject, or auto-expire past `acceptDeadline` |
+| `TICKET_ACTION_PROCESSING_STARTED` | Admin start processing |
+| `TICKET_ACTION_COMPLETED` | Admin finalize as `COMPLETED` |
+| `TICKET_ACTION_FAILED` | Admin finalize as `FAILED` |
+
+`resourceType` = `TICKET_ACTION_REQUEST`; metadata includes `ticketActionType`, `pnr`, `bookingId`, `quoteTotalAmount`.
+
+Live feed: [Activity Feed Admin API](./activity-feed-admin-api.md).
+
 ---
 
 ## Search activity logs

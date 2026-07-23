@@ -7,6 +7,7 @@ import com.aerionsoft.application.repository.audit.ActivityLogRepository;
 import com.aerionsoft.application.util.ActorContext;
 import com.aerionsoft.application.util.RequestContextCapture;
 import com.aerionsoft.application.util.TraceIdSupport;
+import com.aerionsoft.application.websocket.ActivityFeedBroadcaster;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class ActivityLogService {
     private final ActivityLogRepository activityLogRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Executor activityLogExecutor;
+    private final ActivityFeedBroadcaster activityFeedBroadcaster;
 
     @Value("${activity.log.enabled:true}")
     private boolean enabled;
@@ -43,9 +45,11 @@ public class ActivityLogService {
     @Autowired
     public ActivityLogService(
             ActivityLogRepository activityLogRepository,
-            @Qualifier("activityLogExecutor") Executor activityLogExecutor) {
+            @Qualifier("activityLogExecutor") Executor activityLogExecutor,
+            ActivityFeedBroadcaster activityFeedBroadcaster) {
         this.activityLogRepository = activityLogRepository;
         this.activityLogExecutor = activityLogExecutor;
+        this.activityFeedBroadcaster = activityFeedBroadcaster;
     }
 
     public void log(ActivityLogEntry entry) {
@@ -122,7 +126,8 @@ public class ActivityLogService {
                     .httpPath(entry.httpPath)
                     .build();
 
-            activityLogRepository.save(row);
+            ActivityLog saved = activityLogRepository.save(row);
+            activityFeedBroadcaster.onActivityLogged(saved);
         } catch (Exception e) {
             log.warn("Failed to persist activity log event={}", entry.eventType, e);
         }

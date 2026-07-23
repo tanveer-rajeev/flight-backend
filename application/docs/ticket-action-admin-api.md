@@ -7,7 +7,7 @@ Base paths:
 - Admin: `/api/admin/ticket-actions`
 - Agency (booking-scoped): `/api/bookings/{bookingId}/ticket-actions`
 
-Related: [Booking Refund Admin API](./booking-refund-admin-api.md) (direct admin refund without ticket action flow).
+Related: [Booking Refund Admin API](./booking-refund-admin-api.md) (direct admin refund without ticket action flow), [Activity Feed Admin API](./activity-feed-admin-api.md) (live ops feed including ticket actions).
 
 ---
 

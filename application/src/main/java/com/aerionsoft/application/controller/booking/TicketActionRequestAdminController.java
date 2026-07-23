@@ -1,5 +1,6 @@
 package com.aerionsoft.application.controller.booking;
 
+import com.aerionsoft.application.annotation.SkipAutoAudit;
 import com.aerionsoft.application.controller.BaseController;
 
 import com.aerionsoft.application.dto.BaseResponse;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Validated
+@SkipAutoAudit
 @RequestMapping("/api/admin/ticket-actions")
 public class TicketActionRequestAdminController extends BaseController {
 

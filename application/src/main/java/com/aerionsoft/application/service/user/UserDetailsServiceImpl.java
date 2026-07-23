@@ -53,7 +53,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             AdminUser adminUser = adminUserRepo.findByEmail(email)
                     .orElseThrow(() -> new UsernameNotFoundException("Admin User not found"));
             entityId = adminUser.getId();
-            entityType = "USER";
+            entityType = "ADMIN";
 
             List<String> roles = roleAssignmentRepo.findRolesByEntity(entityType, entityId)
                     .stream()

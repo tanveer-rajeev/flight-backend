@@ -21,6 +21,7 @@ import com.aerionsoft.application.enums.booking.TicketActionType;
 import com.aerionsoft.application.repository.booking.TicketActionRequestRepository;
 import com.aerionsoft.application.repository.user.UserRepository;
 import com.aerionsoft.application.repository.user.AdminUserRepository;
+import com.aerionsoft.application.service.audit.ActivityTicketActionAuditSupport;
 import com.aerionsoft.application.service.notification.NotificationHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -48,6 +49,7 @@ public class TicketActionRequestService {
     private final NotificationHelper notificationHelper;
     private final AdminUserRepository adminUserRepository;
     private final TimestampMapper timestampMapper;
+    private final ActivityTicketActionAuditSupport activityTicketActionAuditSupport;
 
     public TicketActionRequestService(TicketActionRequestRepository ticketActionRequestRepository,
                                       BookingService bookingService,
@@ -55,7 +57,8 @@ public class TicketActionRequestService {
                                       CurrencyService currencyService,
                                       NotificationHelper notificationHelper,
                                       AdminUserRepository adminUserRepository,
-                                      TimestampMapper timestampMapper) {
+                                      TimestampMapper timestampMapper,
+                                      ActivityTicketActionAuditSupport activityTicketActionAuditSupport) {
         this.ticketActionRequestRepository = ticketActionRequestRepository;
         this.bookingService = bookingService;
         this.userRepository = userRepository;
@@ -63,6 +66,7 @@ public class TicketActionRequestService {
         this.notificationHelper = notificationHelper;
         this.adminUserRepository = adminUserRepository;
         this.timestampMapper = timestampMapper;
+        this.activityTicketActionAuditSupport = activityTicketActionAuditSupport;
     }
 
     private static final List<TicketActionStatus> OPEN_STATUSES = List.of(
@@ -171,6 +175,8 @@ public class TicketActionRequestService {
 
         TicketActionRequest saved = ticketActionRequestRepository.save(entity);
 
+        activityTicketActionAuditSupport.logSubmitted(saved);
+
         // Notify admins about new request
         notifyAdminsAboutTicketAction(saved, "SUBMITTED");
 
@@ -218,6 +224,8 @@ public class TicketActionRequestService {
         tar.setStatus(TicketActionStatus.USER_CONFIRMED);
         tar.setUserConfirmedAt(UserDateTimeUtil.now());
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
+
+        activityTicketActionAuditSupport.logUserConfirmed(saved);
 
         // Notify admins that user confirmed
         notifyAdminsAboutTicketAction(saved, "USER_CONFIRMED");
@@ -290,6 +298,8 @@ public class TicketActionRequestService {
 
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
 
+        activityTicketActionAuditSupport.logQuoted(saved, adminUserId);
+
         // Notify user that quote is ready (send email if configured later; for now keep in-app only)
         if (saved.getRequester() != null) {
             String email = saved.getRequester().getEmail();
@@ -324,6 +334,8 @@ public class TicketActionRequestService {
 
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
 
+        activityTicketActionAuditSupport.logRejected(saved, adminUserId, false);
+
         // Notify user about rejection
         if (saved.getRequester() != null) {
             String email = saved.getRequester().getEmail();
@@ -354,6 +366,8 @@ public class TicketActionRequestService {
         tar.setStatus(TicketActionStatus.ADMIN_PROCESSING);
         tar.setFinalizedByAdminId(adminUserId);
         TicketActionRequest saved = ticketActionRequestRepository.save(tar);
+
+        activityTicketActionAuditSupport.logProcessingStarted(saved, adminUserId);
 
         // Notify user that processing started
         if (saved.getRequester() != null) {
@@ -401,6 +415,11 @@ public class TicketActionRequestService {
         } else {
             saved = ticketActionRequestRepository.save(tar);
         }
+
+        activityTicketActionAuditSupport.logFinalized(
+                saved,
+                adminUserId,
+                saved.getStatus() == TicketActionStatus.COMPLETED);
 
         // Notify user about final result
         if (saved.getRequester() != null) {
@@ -554,6 +573,7 @@ public class TicketActionRequestService {
                                 "Auto-rejected: user did not confirm within deadline"
                 );
                 ticketActionRequestRepository.save(tar);
+                activityTicketActionAuditSupport.logRejected(tar, null, true);
             }
         }
     }

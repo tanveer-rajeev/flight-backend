@@ -242,6 +242,7 @@ public class BookingService implements BookingInterface {
                 .groupTicketType(resolveGroupTicketType(req))
                 .build();
 
+        stampTicketingTimeIfConfirmed(booking, bookConformation.getStatus());
 
         try {
             bookingRepo.save(booking);
@@ -641,6 +642,9 @@ public class BookingService implements BookingInterface {
                 .updatedAt(timestampMapper.toRequestUserTime(
                         b.getUpdatedAt(),
                         b.getUpdatedTimeOffset() != null ? b.getUpdatedTimeOffset() : b.getTimeOffset()))
+                .ticketingTime(timestampMapper.toRequestUserTime(
+                        b.getTicketingTime(),
+                        b.getTicketingTimeOffset() != null ? b.getTicketingTimeOffset() : b.getTimeOffset()))
                 .travellerIds(travellerIds)
                 .travellers(travellers)
                 .business(businessSimpleDto)
@@ -1012,6 +1016,9 @@ public class BookingService implements BookingInterface {
                 .updatedAt(timestampMapper.toRequestUserTime(
                         booking.getUpdatedAt(),
                         booking.getUpdatedTimeOffset() != null ? booking.getUpdatedTimeOffset() : booking.getTimeOffset()))
+                .ticketingTime(timestampMapper.toRequestUserTime(
+                        booking.getTicketingTime(),
+                        booking.getTicketingTimeOffset() != null ? booking.getTicketingTimeOffset() : booking.getTimeOffset()))
                 .markupAmount(booking.getMarkupAmount())
                 .exchangeCurrencyRate(booking.getExchangeCurrencyRate())
                 .exchangeCurrency(booking.getExchangeCurrency())
@@ -1199,6 +1206,7 @@ public class BookingService implements BookingInterface {
         Booking booking = bookingRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Booking"));
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         if (reason != null && !reason.isBlank()) {
             booking.setReason(reason);
         }
@@ -1214,6 +1222,7 @@ public class BookingService implements BookingInterface {
         Booking booking = bookingRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Booking"));
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status.getBookingStatus());
+        stampTicketingTimeIfConfirmed(booking, status.getBookingStatus());
         booking.setReason(status.getReason());
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
@@ -1237,6 +1246,7 @@ public class BookingService implements BookingInterface {
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         booking.setReason(reason);
         if (airlinePnrs != null && !airlinePnrs.isEmpty()) {
             booking.setAirlinePnrs(airlinePnrs);
@@ -1251,6 +1261,7 @@ public class BookingService implements BookingInterface {
         Booking booking = bookingRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Booking"));
         BookingStatus oldStatus = booking.getStatus();
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         booking.setUpdatedAt(UserDateTimeUtil.now());
         booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());
         bookingRepo.save(booking);
@@ -1340,6 +1351,7 @@ public class BookingService implements BookingInterface {
 
         // Update booking status and ticket
         booking.setStatus(status);
+        stampTicketingTimeIfConfirmed(booking, status);
         booking.setReason(reason);
         if (ticketNo != null && !ticketNo.isEmpty()) {
             booking.setTicketNo(ticketNo);
@@ -1410,6 +1422,14 @@ public class BookingService implements BookingInterface {
                 newStatus,
                 reason,
                 extraMetadata);
+    }
+
+    public void stampTicketingTimeIfConfirmed(Booking booking, BookingStatus newStatus) {
+        if (newStatus != BookingStatus.CONFIRMED || booking.getTicketingTime() != null) {
+            return;
+        }
+        booking.setTicketingTime(UserDateTimeUtil.now());
+        booking.setTicketingTimeOffset(UserDateTimeUtil.currentOffset());
     }
 
 
@@ -2793,6 +2813,7 @@ public class BookingService implements BookingInterface {
         if (booking.getStatus() == BookingStatus.PNR) {
             BookingStatus oldStatus = booking.getStatus();
             booking.setStatus(newStatus);
+            stampTicketingTimeIfConfirmed(booking, newStatus);
             booking.setReason(reason);
             booking.setUpdatedAt(UserDateTimeUtil.now());
             booking.setUpdatedTimeOffset(UserDateTimeUtil.currentOffset());

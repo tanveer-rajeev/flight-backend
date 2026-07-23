@@ -49,6 +49,15 @@ public enum ActivityEventType {
     CREDIT_REQUEST_APPROVED(ActivityEventCategory.WALLET, "Credit request approved"),
     CREDIT_REQUEST_REJECTED(ActivityEventCategory.WALLET, "Credit request rejected"),
 
+    TICKET_ACTION_SUBMITTED(ActivityEventCategory.TICKET_ACTION, "Ticket action request submitted"),
+    TICKET_ACTION_QUOTED(ActivityEventCategory.TICKET_ACTION, "Ticket action quote sent"),
+    TICKET_ACTION_USER_CONFIRMED(ActivityEventCategory.TICKET_ACTION, "Ticket action quote confirmed by agency"),
+    TICKET_ACTION_REJECTED(ActivityEventCategory.TICKET_ACTION, "Ticket action request rejected"),
+    TICKET_ACTION_PROCESSING_STARTED(ActivityEventCategory.TICKET_ACTION, "Ticket action processing started"),
+    TICKET_ACTION_COMPLETED(ActivityEventCategory.TICKET_ACTION, "Ticket action completed"),
+    TICKET_ACTION_FAILED(ActivityEventCategory.TICKET_ACTION, "Ticket action failed"),
+    TICKET_ACTION_CANCELLED(ActivityEventCategory.TICKET_ACTION, "Ticket action cancelled"),
+
     ADMIN_ACTION(ActivityEventCategory.ADMIN, "Admin action performed");
 
     private final ActivityEventCategory category;

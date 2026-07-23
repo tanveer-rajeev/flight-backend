@@ -16,6 +16,12 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import org.springframework.stereotype.Repository;
 
+import com.aerionsoft.application.enums.audit.ActivityEventCategory;
+
+import java.util.Collection;
+
+import java.util.List;
+
 
 
 @Repository
@@ -27,6 +33,14 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long>,
     Page<ActivityLog> findByActorTypeAndActorIdOrderByCreatedAtDesc(
 
             ActorType actorType, Long actorId, Pageable pageable);
+
+    List<ActivityLog> findByIdGreaterThanAndEventCategoryInOrderByIdAsc(
+
+            Long id, Collection<ActivityEventCategory> eventCategories, Pageable pageable);
+
+    List<ActivityLog> findByEventCategoryInOrderByIdDesc(
+
+            Collection<ActivityEventCategory> eventCategories, Pageable pageable);
 
 }
 

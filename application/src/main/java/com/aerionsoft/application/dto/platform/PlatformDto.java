@@ -6,19 +6,18 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-import java.util.Map;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PlatformInfoData {
+public class PlatformDto {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private List<String> providersMap;
-    private Map<String, String> keyValues;
-    private PlatformDto platform;
+    private Long id;
+    private String name;
+    private String domain;
+    private String slug;
+    private Boolean isActive;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private List<String> providers;
-    private List<Object> markupPlans;
+    private String apiKey;
+    private PlatformDetailsDto platformDetails;
 }

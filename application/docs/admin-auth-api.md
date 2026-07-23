@@ -16,7 +16,8 @@ All routes under this path are **public** (no bearer token required), except `PO
 | Login | Two-step: send OTP after credential check, then login with email + password + OTP |
 | JWT provider claim | `admin` |
 | OTP delivery | Email (6-digit code, 5-minute expiry) |
-| OTP resend throttle | 2 minutes between sends per admin user |
+| OTP resend throttle | 2 minutes between sends (registration / forgot-password only) |
+| Login OTP reuse | Any unused, non-expired code works; no new email if one is still valid |
 | Audit | Failed logins → `LOGIN_FAILED`; successful login → `ADMIN_LOGIN` + `login_history` row |
 
 ---
@@ -44,9 +45,9 @@ sequenceDiagram
 ### Recommended frontend steps
 
 1. User enters **email** and **password**.
-2. Call `POST /send-login-otp` (or `POST /resend-login-otp` if the code expired).
+2. Call `POST /send-login-otp` if the user does not already have a valid code (or `POST /resend-login-otp` after expiry).
 3. User enters the **OTP** from email.
-4. Call `POST /login` with email, password, and OTP.
+4. Call `POST /login` with email, password, and OTP — works with **any unused code still within the 5-minute window**, including one from an earlier send.
 5. Store `data.token` (access) and `data.refreshToken` for subsequent admin API calls.
 6. On access token expiry, call `POST /refresh-token` with the refresh token.
 
@@ -56,7 +57,9 @@ sequenceDiagram
 
 ### `POST /api/admin/auth/send-login-otp`
 
-Validates email and password, then emails a login OTP. Does **not** return tokens.
+Validates email and password, then emails a login OTP when needed. Does **not** return tokens.
+
+If the admin already has an **unused, non-expired** OTP, the call succeeds immediately and **does not send another email** — the user should enter the code they already received.
 
 #### Request body
 
@@ -96,8 +99,9 @@ Content-Type: application/json
 | 401 | Account not verified | Account not verified! |
 | 401 | Account inactive | Account is not active! |
 | 400 | Wrong password | Invalid password |
-| 409 | OTP sent within last 2 minutes | OTP already sent recently. Please wait 2 minutes before requesting again. |
 | 400 | Validation failure | Field validation errors |
+
+Note: No `409` throttle on login OTP when a valid unused code already exists. A new email is sent only after the previous code expired or was used.
 
 ---
 
@@ -105,7 +109,7 @@ Content-Type: application/json
 
 ### `POST /api/admin/auth/resend-login-otp`
 
-Same behaviour as `send-login-otp`. Validates credentials again and sends a new OTP (subject to the 2-minute throttle).
+Same behaviour as `send-login-otp`. If a valid unused OTP still exists, returns success without sending a new email. Otherwise validates credentials and sends a fresh code.
 
 #### Request body
 
@@ -128,7 +132,7 @@ Same as [Send login OTP](#send-login-otp).
 
 ### `POST /api/admin/auth/login`
 
-Completes admin login after OTP has been sent. Returns access and refresh tokens.
+Completes admin login. Accepts **any unused OTP that has not expired**, not only the most recently sent code.
 
 #### Request body
 
@@ -381,8 +385,9 @@ Content-Type: application/json
 |------|--------|
 | Code format | 6 digits |
 | Expiry | 5 minutes |
-| Resend cooldown | 2 minutes (login, registration, forgot-password) |
-| Single use | Each OTP is invalidated after successful verification |
+| Resend cooldown | 2 minutes (registration / forgot-password only) |
+| Login reuse | Unused codes remain valid until expiry; login accepts any of them |
+| Single use | Each OTP is invalidated after successful login or verification |
 | Delivery | Email via configured mail service |
 
 Login OTPs are independent from registration and password-reset OTPs, but all are stored in `otp_tokens` and matched per admin user.

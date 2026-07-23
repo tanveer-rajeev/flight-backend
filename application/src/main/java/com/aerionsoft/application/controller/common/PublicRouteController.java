@@ -19,8 +19,14 @@ import com.aerionsoft.application.entity.Countries;
 import com.aerionsoft.application.enums.tour.ApplicationStatus;
 import com.aerionsoft.application.enums.cms.ContentType;
 import com.aerionsoft.application.service.business.BusinessService;
+import com.aerionsoft.application.dto.admin.AirlineDto;
+import com.aerionsoft.application.dto.admin.AirportDto;
+import com.aerionsoft.application.dto.platform.PlatformInfoData;
+import com.aerionsoft.application.service.admin.AirportAirLineService;
 import com.aerionsoft.application.service.common.CountriesService;
 import com.aerionsoft.application.service.common.IpRateLimiterService;
+import com.aerionsoft.application.service.common.PlatformAirlineService;
+import com.aerionsoft.application.service.common.PlatformInfoService;
 import com.aerionsoft.application.service.common.R2FileService;
 import com.aerionsoft.application.service.tour.TourApplicationService;
 import com.aerionsoft.application.service.admin.AdminUserService;
@@ -93,6 +99,32 @@ public class PublicRouteController {
 
     @Autowired
     private IpRateLimiterService ipRateLimiterService;
+
+    @Autowired
+    private PlatformInfoService platformInfoService;
+
+    @Autowired
+    private PlatformAirlineService platformAirlineService;
+
+    @Autowired
+    private AirportAirLineService airportAirLineService;
+
+    @GetMapping("/platform-info")
+    public ResponseEntity<BaseResponse<PlatformInfoData>> getPlatformInfo() {
+        return ResponseEntity.ok(BaseResponse.ok(
+                platformInfoService.getPlatformInfo(),
+                "Platform information retrieved successfully"));
+    }
+
+    @GetMapping("/airports")
+    public ResponseEntity<BaseResponse<List<AirportDto>>> getAirports() {
+        return ResponseEntity.ok(BaseResponse.ok(airportAirLineService.getAllAirports()));
+    }
+
+    @GetMapping("/airlines")
+    public ResponseEntity<BaseResponse<List<AirlineDto>>> getAirlines() {
+        return ResponseEntity.ok(BaseResponse.ok(platformAirlineService.getAirlines()));
+    }
 
     /**
      * Public agency signup. Creates a mother user from representative details

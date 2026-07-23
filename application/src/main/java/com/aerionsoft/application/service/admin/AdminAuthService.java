@@ -101,6 +101,27 @@ public class AdminAuthService {
                     "OTP already sent recently. Please wait 2 minutes before requesting again.");
         }
 
+        createAndSendOtp(adminUser);
+    }
+
+    public void sendLoginOtp(SendLoginOtpRequest req, String ip, String userAgent) {
+        AdminUser adminUser = validateAdminCredentials(req.getEmail(), req.getPassword(), ip, userAgent);
+        sendLoginOtp(adminUser);
+    }
+
+    private void sendLoginOtp(AdminUser adminUser) {
+        if (hasValidUnusedLoginOtp(adminUser)) {
+            return;
+        }
+        createAndSendOtp(adminUser);
+    }
+
+    private boolean hasValidUnusedLoginOtp(AdminUser adminUser) {
+        return otpTokenRepo.findTopByAdminUserAndUsedIsFalseAndExpiresAtAfterOrderByCreatedAtDesc(
+                adminUser, UserDateTimeUtil.now()).isPresent();
+    }
+
+    private void createAndSendOtp(AdminUser adminUser) {
         String otp = String.format("%06d", new Random().nextInt(999998));
         OtpToken otpToken = OtpToken.builder()
                 .adminUser(adminUser)
@@ -108,13 +129,7 @@ public class AdminAuthService {
                 .build();
         otpTokenRepo.save(otpToken);
 
-        // Send OTP via email using database credentials
         emailService.sendOtp(adminUser.getEmail(), otp);
-    }
-
-    public void sendLoginOtp(SendLoginOtpRequest req, String ip, String userAgent) {
-        AdminUser adminUser = validateAdminCredentials(req.getEmail(), req.getPassword(), ip, userAgent);
-        sendOtp(adminUser);
     }
 
     public void verifyOtp(OtpVerificationRequest req) {

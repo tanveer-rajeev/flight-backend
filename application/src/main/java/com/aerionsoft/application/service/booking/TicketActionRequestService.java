@@ -475,7 +475,8 @@ public class TicketActionRequestService {
                 reissueDate,
                 tar.getId(),
                 reason,
-                request.getSegments());
+                request.getSegments(),
+                tar.getFinalizedByAdminId());
 
         return ticketActionRequestRepository.save(tar);
     }

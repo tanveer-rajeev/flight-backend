@@ -2006,6 +2006,12 @@ public class BookingService implements BookingInterface {
 
     private void applyBookingWalletDebit(Booking booking, User owner, double convertedAmount, double usdAmount, String description,
                                          boolean canOverrideBalance, String remarks) {
+        applyBookingWalletDebit(booking, owner, convertedAmount, usdAmount, description, canOverrideBalance, remarks,
+                DepositType.PURCHASE);
+    }
+
+    private void applyBookingWalletDebit(Booking booking, User owner, double convertedAmount, double usdAmount, String description,
+                                         boolean canOverrideBalance, String remarks, DepositType depositType) {
         Long actingUserId = booking.getActingUserId() != null ? booking.getActingUserId() : owner.getId();
         Long walletUserId = CreditLimitValidatorService.resolveWalletUserId(owner);
         String provider = booking.getProviderName() != null ? booking.getProviderName().name() : "OTHERS";
@@ -2021,11 +2027,11 @@ public class BookingService implements BookingInterface {
         WalletDeposit deposit = WalletDeposit.builder()
                 .userId(walletUserId)
                 .actingUserId(actingUserId)
-                .type(DepositType.PURCHASE)
+                .type(depositType)
                 .status(DepositStatus.APPROVED)
                 .amount(usdAmount)
                 .exchangeRate(exchangeRate)
-                .remarks("admin_edit_" + booking.getPnr())
+                .remarks(depositRemarks)
                 .reference(depositReference)
                 .transactionId(UUID.randomUUID().toString())
                 .createdAt(UserDateTimeUtil.now())
@@ -2035,7 +2041,7 @@ public class BookingService implements BookingInterface {
         walletDepositRepository.save(deposit);
 
         Transaction transaction = Transaction.builder()
-                .type(DepositType.PURCHASE.name())
+                .type(depositType.name())
                 .amount(convertedAmount)
                 .currency(owner.getCurrency() != null ? owner.getCurrency() : "USD")
                 .exchangeRate(exchangeRate)
@@ -2047,6 +2053,71 @@ public class BookingService implements BookingInterface {
                 .reference(depositReference)
                 .sourceType(TransactionSourceType.BOOKING.name())
                 .sourceId(booking.getId())
+                .build();
+        transactionRepository.save(transaction);
+    }
+
+    /**
+     * Debits only the quoted reissue charge as ADMIN_CHARGE (not a second PURCHASE for the full ticket).
+     */
+    private void applyReissueAdminCharge(
+            Booking booking,
+            User owner,
+            BigDecimal quoteTotalAmountUsd,
+            java.time.LocalDate reissueDate,
+            Long ticketActionRequestId,
+            Long adminUserId) {
+        double exchangeRate = parseExchangeRate(booking);
+        double chargeUsd = quoteTotalAmountUsd.doubleValue();
+        double chargeConverted = quoteTotalAmountUsd
+                .multiply(BigDecimal.valueOf(exchangeRate))
+                .setScale(2, java.math.RoundingMode.HALF_UP)
+                .doubleValue();
+
+        Long actingUserId = booking.getActingUserId() != null ? booking.getActingUserId() : owner.getId();
+        Long walletUserId = CreditLimitValidatorService.resolveWalletUserId(owner);
+        String provider = booking.getProviderName() != null ? booking.getProviderName().name() : "OTHERS";
+        String description = "Ticket reissue charge (quoted amount " + quoteTotalAmountUsd.toPlainString()
+                + " USD) for booking " + booking.getId() + " PNR " + booking.getPnr()
+                + " (reissue date " + (reissueDate != null ? reissueDate : "—") + ")";
+        String remarks = "ticket_action_reissue_" + booking.getPnr() + "_req_" + ticketActionRequestId;
+
+        userService.deductUserBalance(owner.getId(), chargeConverted, provider, true,
+                "BookingService", booking.getId(), "BOOKING", actingUserId);
+
+        String depositReference = referenceGeneratorService.nextReference("ac");
+        WalletDeposit deposit = WalletDeposit.builder()
+                .userId(walletUserId)
+                .actingUserId(adminUserId != null ? adminUserId : actingUserId)
+                .type(DepositType.ADMIN_CHARGE)
+                .status(DepositStatus.APPROVED)
+                .amount(chargeUsd)
+                .exchangeRate(exchangeRate)
+                .remarks(remarks)
+                .reference(depositReference)
+                .transactionId(depositReference)
+                .createdAt(UserDateTimeUtil.now())
+                .exchangedAmount(chargeConverted)
+                .currency(owner.getCurrency() != null ? Currency.valueOf(owner.getCurrency()) : Currency.USD)
+                .approvedAt(UserDateTimeUtil.now())
+                .approvedBy(adminUserId)
+                .build();
+        walletDepositRepository.save(deposit);
+
+        Transaction transaction = Transaction.builder()
+                .type(DepositType.ADMIN_CHARGE.name())
+                .amount(chargeConverted)
+                .currency(owner.getCurrency() != null ? owner.getCurrency() : "USD")
+                .exchangeRate(exchangeRate)
+                .convertedAmount(String.valueOf(chargeConverted))
+                .description(description)
+                .userId(walletUserId)
+                .createdBy(adminUserId != null ? "ADMIN:" + adminUserId : "ADMIN")
+                .createdAt(UserDateTimeUtil.now())
+                .reference(depositReference)
+                .sourceType(TransactionSourceType.BOOKING.name())
+                .sourceId(booking.getId())
+                .active(true)
                 .build();
         transactionRepository.save(transaction);
     }
@@ -2272,7 +2343,8 @@ public class BookingService implements BookingInterface {
             java.time.LocalDate reissueDate,
             Long ticketActionRequestId,
             String reason,
-            List<ReissueSegmentDateUpdate> segmentUpdates) {
+            List<ReissueSegmentDateUpdate> segmentUpdates,
+            Long adminUserId) {
         if (chargeAmountUsd == null || chargeAmountUsd.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR,
                     "Reissue charge amount must be greater than zero");
@@ -2298,15 +2370,13 @@ public class BookingService implements BookingInterface {
                 .setScale(2, java.math.RoundingMode.HALF_UP)
                 .doubleValue();
 
-        applyBookingWalletDebit(
+        applyReissueAdminCharge(
                 booking,
                 owner,
-                chargeConverted,
-                chargeAmountUsd.doubleValue(),
-                "Ticket action reissue charge for booking " + booking.getId()
-                        + " (reissue date " + (reissueDate != null ? reissueDate : "—") + ")",
-                true,
-                "ticket_action_reissue_" + booking.getPnr());
+                chargeAmountUsd,
+                reissueDate,
+                ticketActionRequestId,
+                adminUserId);
 
         bookingSupplierInvoiceService.recordReissueCharge(
                 booking, supplierReissueCostUsd, reissueDate, ticketActionRequestId);
@@ -2332,6 +2402,9 @@ public class BookingService implements BookingInterface {
         metadata.put("reissueDate", reissueDate != null ? reissueDate.toString() : null);
         metadata.put("reissueChargeAmountUsd", chargeAmountUsd);
         metadata.put("supplierReissueCost", supplierReissueCostUsd);
+        metadata.put("walletChargeType", "ADMIN_CHARGE");
+        metadata.put("walletChargeAmountUsd", chargeAmountUsd);
+        metadata.put("walletChargeAmountConverted", chargeConverted);
         metadata.put("balanceCheckBypassed", true);
         if (segmentUpdates != null && !segmentUpdates.isEmpty()) {
             metadata.put("segmentsUpdated", true);

@@ -86,7 +86,9 @@ Supplier payable is **reversed**: `buyPrice − supplierRefundCost`.
 netProfitLoss = profitLoss + (quoteTotalAmount - supplierRefundCost)
 ```
 
-On **COMPLETED** reissue finalize the agency wallet is **debited** by `quoteTotalAmount` (reissue charge).
+On **COMPLETED** reissue finalize the agency wallet is **debited** by **`quoteTotalAmount` only** (the quoted reissue charge — not the full booking price).
+
+The debit is recorded as **`ADMIN_CHARGE`** (wallet deposit + transaction), not a second **`PURCHASE`**.
 
 **Balance bypass:** Admin reissue finalize skips the insufficient-balance check (same as admin booking edit). The agency wallet may go **negative** if funds are insufficient.
 
@@ -264,7 +266,7 @@ All segment and travel updates run in the **same transaction** as wallet debit, 
 
 #### When `resultStatus = COMPLETED` (reissue)
 
-1. **Wallet** — debits agency by `quoteTotalAmount` (reissue charge). Balance check is bypassed; wallet may go negative.
+1. **Wallet** — debits agency by **`quoteTotalAmount` only** as **`ADMIN_CHARGE`**. Balance check is bypassed; wallet may go negative.
 2. **Booking** — status set to `REISSUE`.
 3. **Supplier payable** — increased by `supplierRefundCost` (append-only supplier ledger entry).
 4. **Segments** — optional `segments` payload updates itinerary dates (see above).

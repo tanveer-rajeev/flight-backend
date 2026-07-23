@@ -1,6 +1,6 @@
 package com.aerionsoft.notification.factory;
 
-import com.aerionsoft.notification.dto.NotificationRequest;
+import com.aerionsoft.notification.dto.request.NotificationRequest;
 import com.aerionsoft.notification.entity.Notification;
 import org.springframework.stereotype.Component;
 
@@ -14,21 +14,27 @@ public class NotificationFactory {
     }
 
     public Notification createFrom(NotificationRequest request) {
-        String title = hasText(request.title())
-                ? request.title()
-                : templateResolver.resolveTitle(request.type(), request.metadata());
+        ResolvedNotificationContent resolved = templateResolver.resolve(request.type(), request.metadata());
 
-        String massage = hasText(request.message())
-                ? request.message()
-                : templateResolver.resolveBody(request.type(), request.metadata());
+        String title = hasText(request.title()) ? request.title() : resolved.title();
+        String message = hasText(request.message()) ? request.message() : resolved.message();
+        var priority = (request.priority() != null) ? request.priority() : resolved.defaultPriority();
+        String referenceType = hasText(request.referenceType()) ? request.referenceType() : resolved.defaultReferenceType();
 
-        return Notification.create(
-                request.recipientUserId(),
+        Notification notification = Notification.create(
+                request.userId(),
                 request.type(),
                 title,
-                massage,
-                request.priority()
+                message,
+                priority
         );
+
+        notification.setReferenceType(referenceType);
+        notification.setReferenceId(request.referenceId());
+        notification.setActionUrl(request.actionUrl());
+        notification.setActionLabel(request.actionLabel());
+
+        return notification;
     }
 
     private boolean hasText(String value) {

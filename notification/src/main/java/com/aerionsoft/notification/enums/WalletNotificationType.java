@@ -1,4 +1,6 @@
-package com.aerionsoft.notification.dto;
+package com.aerionsoft.notification.enums;
+
+import com.aerionsoft.notification.entity.NotificationType;
 
 public enum WalletNotificationType implements NotificationType {
     DEPOSIT_CREATED,

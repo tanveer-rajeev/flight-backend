@@ -9,4 +9,8 @@ public interface NotificationChannel {
     NotificationChannelType getType();
 
     void send(Notification notification, NotificationDelivery delivery);
+
+    default boolean isDefaultEnabled() {
+        return true;
+    }
 }

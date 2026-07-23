@@ -1,15 +1,11 @@
 package com.aerionsoft.notification.entity;
 
-import com.aerionsoft.notification.dto.NotificationCategory;
-import com.aerionsoft.notification.dto.NotificationType;
+import com.aerionsoft.notification.enums.NotificationCategory;
 import com.aerionsoft.notification.enums.NotificationChannelType;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.UUID;
 
 @Entity
 @Table(
@@ -18,12 +14,12 @@ import java.util.UUID;
 )
 @Getter
 @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor()
 public class NotificationPreference {
 
     @Id
     @GeneratedValue
-    private UUID id;
+    private Long id;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;

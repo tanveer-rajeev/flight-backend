@@ -6,7 +6,7 @@ public class NotificationNotFoundException extends NotificationException {
         super(message);
     }
 
-    public static NotificationNotFoundException forId(java.util.UUID id) {
+    public static NotificationNotFoundException forId(Long id) {
         return new NotificationNotFoundException("Notification not found with id: " + id);
     }
 }

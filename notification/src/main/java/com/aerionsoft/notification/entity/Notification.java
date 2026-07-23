@@ -1,8 +1,7 @@
 package com.aerionsoft.notification.entity;
 
-import com.aerionsoft.notification.dto.NotificationCategory;
-import com.aerionsoft.notification.dto.NotificationType;
-import com.aerionsoft.notification.dto.SystemNotificationType;
+import com.aerionsoft.notification.enums.NotificationCategory;
+import com.aerionsoft.notification.enums.SystemNotificationType;
 import com.aerionsoft.notification.enums.NotificationPriority;
 import com.aerionsoft.notification.enums.NotificationStatus;
 import jakarta.persistence.*;
@@ -103,6 +102,11 @@ public class Notification {
         notification.message = message;
         notification.priority = priority;
         return notification;
+    }
+
+    public void addDelivery(NotificationDelivery delivery) {
+        delivery.assignTo(this);
+        this.deliveries.add(delivery);
     }
 
     @PrePersist

@@ -1,4 +1,4 @@
-package com.aerionsoft.notification.dto;
+package com.aerionsoft.notification.dto.response;
 
 import java.util.List;
 

@@ -1,22 +1,29 @@
 package com.aerionsoft.notification.mapper;
 
-import com.aerionsoft.notification.dto.NotificationResponse;
-import com.aerionsoft.notification.dto.NotificationSocketMessage;
-import com.aerionsoft.notification.dto.NotificationSummaryResponse;
+import com.aerionsoft.notification.dto.response.NotificationResponse;
+import com.aerionsoft.notification.dto.response.NotificationSummaryResponse;
+import com.aerionsoft.notification.dto.websocket.NotificationSocketMessage;
 import com.aerionsoft.notification.entity.Notification;
 
 import java.util.List;
 
-public class NotificationMapper {
+public final class NotificationMapper {
+
+    private NotificationMapper() {
+    }
 
     public static NotificationResponse toResponse(Notification notification) {
         return new NotificationResponse(
                 notification.getId(),
-                notification.getType(),
+                notification.getTypeCode(),
                 notification.getTitle(),
-                notification.getBody(),
+                notification.getMessage(),
                 notification.getPriority(),
                 notification.isReadFlag(),
+                notification.getReferenceType(),
+                notification.getReferenceId(),
+                notification.getActionUrl(),
+                notification.getActionLabel(),
                 notification.getCreatedAt()
         );
     }
@@ -34,9 +41,13 @@ public class NotificationMapper {
     public static NotificationSocketMessage toSocketMessage(Notification notification) {
         return new NotificationSocketMessage(
                 notification.getId(),
-                notification.getType(),
+                notification.getTypeCode(),
                 notification.getTitle(),
-                notification.getBody(),
+                notification.getMessage(),
+                notification.getReferenceType(),
+                notification.getReferenceId(),
+                notification.getActionUrl(),
+                notification.getActionLabel(),
                 notification.getCreatedAt()
         );
     }

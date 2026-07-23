@@ -1,4 +1,6 @@
-package com.aerionsoft.notification.dto;
+package com.aerionsoft.notification.entity;
+
+import com.aerionsoft.notification.enums.NotificationCategory;
 
 public interface NotificationType {
     String name();

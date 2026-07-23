@@ -27,8 +27,7 @@ public class NotificationRoutingResolver {
     }
 
     public Set<NotificationChannelType> resolve(Notification notification) {
-        List<NotificationPreference> preferences =
-                preferenceRepository.findByUserId(notification.getUserId());
+        List<NotificationPreference> preferences = preferenceRepository.findByUserId(notification.getUserId());
 
         if (preferences.isEmpty()) {
             return defaultChannels;

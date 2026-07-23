@@ -23,9 +23,7 @@ public record NotificationRequest(
     public NotificationRequest {
         Objects.requireNonNull(userId, "userId must not be null");
         Objects.requireNonNull(type, "type must not be null");
-        // title/message intentionally NOT required here — may be null, resolved from template later
         metadata = (metadata != null) ? Map.copyOf(metadata) : Map.of();
         recipientContacts = (recipientContacts != null) ? Map.copyOf(recipientContacts) : Map.of();
-        // priority left as-is — null is meaningful ("use template default"), not filled in here
     }
 }

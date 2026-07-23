@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class LoginRequest {
+public class SendLoginOtpRequest {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be a valid email address")
@@ -13,7 +13,4 @@ public class LoginRequest {
 
     @NotBlank(message = "Password is required")
     private String password;
-
-    @NotBlank(message = "OTP is required")
-    private String otp;
 }

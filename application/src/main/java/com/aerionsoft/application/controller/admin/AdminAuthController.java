@@ -4,7 +4,8 @@ package com.aerionsoft.application.controller.admin;
 import com.aerionsoft.application.controller.BaseController;
 import com.aerionsoft.application.dto.BaseResponse;
 import com.aerionsoft.application.dto.admin.ChangePasswordRequest;
-import com.aerionsoft.application.dto.client.auth.LoginRequest;
+import com.aerionsoft.application.dto.admin.auth.LoginRequest;
+import com.aerionsoft.application.dto.admin.auth.SendLoginOtpRequest;
 import com.aerionsoft.application.dto.client.auth.LoginResponse;
 import com.aerionsoft.application.dto.client.auth.OtpSend;
 import com.aerionsoft.application.dto.client.auth.OtpVerificationRequest;
@@ -42,6 +43,26 @@ public class AdminAuthController extends BaseController {
     public ResponseEntity<BaseResponse<?>> verifyOtp(@Valid @RequestBody OtpVerificationRequest req) {
         authService.verifyOtp(req);
         return ResponseEntity.ok(BaseResponse.ok("OTP verified. You can now log in."));
+    }
+
+    @PostMapping("/send-login-otp")
+    public ResponseEntity<BaseResponse<?>> sendLoginOtp(
+            @Valid @RequestBody SendLoginOtpRequest req,
+            HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        authService.sendLoginOtp(req, ip, userAgent);
+        return ResponseEntity.ok(BaseResponse.ok("OTP sent to your email."));
+    }
+
+    @PostMapping("/resend-login-otp")
+    public ResponseEntity<BaseResponse<?>> resendLoginOtp(
+            @Valid @RequestBody SendLoginOtpRequest req,
+            HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+        authService.sendLoginOtp(req, ip, userAgent);
+        return ResponseEntity.ok(BaseResponse.ok("OTP resent to your email."));
     }
 
     @PostMapping("/login")

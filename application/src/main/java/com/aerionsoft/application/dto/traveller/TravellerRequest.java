@@ -1,6 +1,7 @@
 package com.aerionsoft.application.dto.traveller;
 
 import com.aerionsoft.application.enums.user.Gender;
+import com.aerionsoft.application.validation.ValidTitleGender;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -10,6 +11,7 @@ import java.time.Period;
 import java.time.format.DateTimeFormatter;
 
 @Data
+@ValidTitleGender
 public class TravellerRequest {
 
     @NotBlank(message = "Title name is required")

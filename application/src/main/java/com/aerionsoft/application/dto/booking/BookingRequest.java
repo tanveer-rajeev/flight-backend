@@ -9,6 +9,7 @@ import com.aerionsoft.application.enums.booking.BookingType;
 import com.aerionsoft.application.enums.booking.Provider;
 import com.aerionsoft.application.enums.booking.TripType;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -46,6 +47,7 @@ public class BookingRequest {
 
     private String bundleCode;
 
+    @Valid
     private List<TravellerRequest> itineraries;
 
     @NotNull(message = "Fare Rule is required")

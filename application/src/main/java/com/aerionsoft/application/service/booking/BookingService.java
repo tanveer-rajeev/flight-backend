@@ -2810,7 +2810,7 @@ public class BookingService implements BookingInterface {
                 .orElseThrow(() -> new ResourceNotFoundException("Booking", bookingId));
 
         // Allow manual status change only if current status is ON_HOLD or PNR
-        if (booking.getStatus() == BookingStatus.PNR) {
+        if (booking.getStatus() == BookingStatus.PNR || booking.getStatus() == BookingStatus.PROCESS) {
             BookingStatus oldStatus = booking.getStatus();
             booking.setStatus(newStatus);
             stampTicketingTimeIfConfirmed(booking, newStatus);
